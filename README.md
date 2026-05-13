@@ -13,24 +13,39 @@
 
 ```mermaid
 flowchart LR
+    classDef problemNode fill:#fce8e8,stroke:#d32f2f,stroke-width:2px,color:#b71c1c
+    classDef solutionNode fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20
+    classDef decisionNode fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#e65100
+    classDef neutralNode fill:#f5f5f5,stroke:#616161,stroke-width:1px,color:#212121
+
     subgraph Native["Native Memory (MEMORY.md / USER.md)"]
-        A1[Agent writes] --> B1{Size limit?}
-        B1 -->|Yes| C1[Auto-compress: discard data]
-        C1 --> D1[Context lost]
-        D1 -.-> A1
-        B1 -->|No| E1[Appended, no category]
+        direction TB
+        A1(Agent writes to memory) --> B1{File at character\nlimit? 2200/1375}
+        B1 -->|Yes| C1[Auto-compression triggered]
+        C1 --> D1[Entries merged and\ndiscarded arbitrarily]
+        D1 --> E1[Context degraded]
+        D1 -.-> B1
+        B1 -->|No| F1[Appended without\ncategory or priority]
+        F1 --> E1
     end
 
     subgraph Soul["SOUL.md Governance"]
-        A2[Agent writes] --> B2{Read first?}
-        B2 -->|Yes| C2[Merge old + new]
-        B2 -->|No| D2[Write directly]
-        C2 --> E2[Categorized file]
-        D2 --> E2
-        E2 --> F2[Verify integrity]
+        direction TB
+        P1(Agent writes data) --> P2{Read-before-write\nenforced}
+        P2 -->|File exists| P3[Read full content]
+        P3 --> P4[Merge old + new]
+        P2 -->|New entry| P5[Write directly]
+        P4 --> P6[Write to categorized file\npreferences.md / user-profile.md\nenvironment-setup.md / workflows/]
+        P5 --> P6
+        P6 --> P7[Post-write verification\nread_file confirms integrity]
     end
 
-    Native -->|"Problem"| Soul
+    Native -->|"Data loss loop"| Soul
+
+    class A1,B1,C1,D1,E1,F1 problemNode
+    class P5,P6,P7,P3,P4 solutionNode
+    class B1,P2 decisionNode
+    class A1,P1 neutralNode
 ```
 
 > **Hermes Agent's native `MEMORY.md` has a 2200-character limit and auto-compression loop that silently discards context.**
