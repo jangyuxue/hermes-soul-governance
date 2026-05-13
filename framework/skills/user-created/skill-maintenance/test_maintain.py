@@ -21,6 +21,12 @@ from pathlib import Path
 
 SCRIPT_PATH = os.path.expanduser("~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py")
 
+# Fallback: if running from the framework/source directory before deployment
+if not os.path.exists(SCRIPT_PATH):
+    fallback = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "maintain.py")
+    if os.path.exists(fallback):
+        SCRIPT_PATH = fallback
+
 
 class TestEnv:
     """Temporary directory simulating ~/.hermes/ environment"""

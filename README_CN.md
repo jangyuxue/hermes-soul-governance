@@ -349,11 +349,19 @@ hermes-soul-governance/
 
 ## 测试
 
+部署到 `~/.hermes/` 后：
+
 ```bash
-python3 framework/skills/user-created/skill-maintenance/test_maintain.py
+~/.hermes/hermes-agent/venv/bin/python \
+  ~/.hermes/skills/user-created/skill-maintenance/test_maintain.py
 ```
 
 11 个测试用例：空目录、新技能检测、SKILL.md 自动修复、注册表同步、删除注销、幂等性、清单一致性、混合类型、校验警告、清空状态。全部通过。
+
+**部署前**（在仓库根目录下运行）：
+```bash
+python3 framework/skills/user-created/skill-maintenance/test_maintain.py
+```
 
 ---
 

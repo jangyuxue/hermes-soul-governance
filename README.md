@@ -357,11 +357,19 @@ hermes-soul-governance/
 
 ## Testing
 
+After deploying to `~/.hermes/`:
+
 ```bash
-python3 framework/skills/user-created/skill-maintenance/test_maintain.py
+~/.hermes/hermes-agent/venv/bin/python \
+  ~/.hermes/skills/user-created/skill-maintenance/test_maintain.py
 ```
 
 11 test cases: empty directory, new skill detection, SKILL.md auto-fix, registry sync, deletion unregister, idempotency, manifest consistency, mixed skill types, validation warnings, clean state. All passing.
+
+**Before deployment** (from the repository root):
+```bash
+python3 framework/skills/user-created/skill-maintenance/test_maintain.py
+```
 
 ---
 
