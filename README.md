@@ -1,215 +1,153 @@
 <p align="center">
   <br>
   <b>SOUL.md Governance Framework</b><br>
-  <i>Fix Hermes Agent's broken memory, unmanaged skills, and missing governance layer.</i>
+  <i>A structured governance layer for Hermes Agent — replacing default memory with file-based persistence and automated skill lifecycle management.</i>
 </p>
 
 <br>
 
 ---
 
-## The Problem
+## Background
 
-### 1. Memory is Broken
+Hermes Agent stores persistent data through two mechanisms:
 
-Hermes stores memory in `MEMORY.md` and `USER.md` — each capped at **2200 and 1375 characters** respectively. That's ~3600 characters total for everything the agent should remember about you.
+1. **`MEMORY.md` / `USER.md`** — each capped at 2200 and 1375 characters respectively. When capacity is exhausted, the system automatically compresses existing content by merging facts, discarding context, and rewriting entries. Over successive cycles, these files accumulate mixed-priority, unstructured data — preferences, environment configurations, workflow notes, and system auto-summaries — without separation by category or retention policy. The resulting content, when injected into the system prompt, degrades response coherence and increases maintenance overhead.
 
-When the files fill up, Hermes **auto-compresses** existing content to make room. It merges facts, drops context, and keeps writing until it fills up again. Over time, these files become a garbage dump — preferences, environment details, workflows, and random auto-summaries all mashed together with no structure, no priority, no separation.
+2. **Auto-generated skills** — after completing tasks involving multiple tool calls, the agent is instructed to preserve the approach as a skill. However, the system provides no expiration policy, quality validation, duplicate detection, or auto-registration mechanism. Skills accumulate on disk without entering `user_capabilities.json`, rendering them unreachable by the trigger matching system.
 
-The result: the injected system prompt becomes incoherent, the agent's output drifts, and you end up with a system that costs more to maintain than it saves.
+These issues stem from a common root cause: rules written inside writable files (`MEMORY.md`, `USER.md`) cannot be enforced at write time. The agent writes through tool calls that bypass file content entirely — it never reads the file before writing. Rules only take effect when the file is full and the system reads it to compress, which is not a reliable enforcement point.
 
-Worse, the native memory system has **no rules enforcement**. The agent writes to MEMORY.md and USER.md using the `memory()` tool, which bypasses any rules you write inside those files. Rules only apply when the file is **full** and needs compression — otherwise the agent writes blindly.
-
-### 2. Skill System Creates but Never Maintains
-
-Hermes encourages saving skills after complex tasks (5+ tool calls), but there's no:
-- **Expiry policy** — skills live forever on disk
-- **Quality gate** — malformed or empty skills are accepted
-- **Deduplication** — overlapping skills accumulate
-- **Auto-registration** — skills are created but never added to `user_capabilities.json`, so `capability_finder.py` can't find them
-
-Result: skill directories fill up with duplicates, garbage, and orphaned files. No one knows what's useful and what's stale.
-
-### 3. No Privacy Isolation in Gateway Mode
-
-When Hermes runs behind a gateway (Telegram, Feishu, etc.), multiple users share one process, one database, and one OS user account. `session_search` has no `user_id` filter — anyone can search anyone else's conversations. `read_file` has no approval gate, so anyone can read config files, API keys, and other users' data.
-
-Current mitigations (`allowed_chats`, `approvals.mode`, SOUL.md rules) are all agent-discipline-dependent. There's no real isolation.
+SOUL.md (`~/.hermes/SOUL.md`) provides a different injection path — unconditional loading at session start, with no corresponding write function in the codebase. This makes it a read-only anchor that cannot be overwritten by the memory system.
 
 ---
 
-## The Solution
-
-### Architecture
-
-```
-SOUL.md (unconditional injection, no write path)
-  ├── user-memory/          ← Structured persistence (unlimited, no auto-compression)
-  │   ├── preferences.md
-  │   ├── user-profile.md
-  │   ├── environment-setup.md
-  │   └── workflows/
-  ├── user-registry/        ← Custom skill management
-  │   ├── user_capabilities.json
-  │   └── capability_finder.py
-  └── skills/
-      ├── auto-generated/   ← Agent's skills
-      └── user-created/     ← User's skills
-```
+## Solution Architecture
 
 ### Layer 1: SOUL.md — Read-Only Rule Anchor
 
-SOUL.md is the only file that is both **unconditionally injected** (no toggle, always loaded) and **system-cannot-write** (no write function exists). Rules placed here cannot be overwritten by memory auto-compression.
+SOUL.md is loaded automatically every turn via `load_soul_md()`, placed at `prompt_parts[0]` (highest priority). The system has no write path for this file. Rules defined here cannot be modified by memory operations.
 
-Key rules enforced:
-- No `memory(action='add')` — disabled via config
-- Write protocol: read → merge → write → verify
-- Trigger keyword mapping (preferences → `preferences.md`, identity → `user-profile.md`, etc.)
-- Search-first retrieval (keyword match before full read)
+The file defines:
+- Write protocol: read → merge → write → verify (Section 3)
+- Keyword-to-file mapping for structured persistence (Section 3.5.1)
+- Search-first retrieval, on-demand loading (Section 4)
+- Skill creation triggers and storage paths (Section 7)
 
-### Layer 2: user-memory/ — Structured Persistence
+Native memory is disabled via configuration:
 
-Replaces `MEMORY.md` and `USER.md` with unlimited, categorized files:
+```yaml
+memory:
+  memory_enabled: false
+  user_profile_enabled: false
+```
 
-| File | Stores | Read when |
-|------|--------|-----------|
-| `preferences.md` | Communication style, tone, habits | User asks about preferences |
-| `user-profile.md` | Identity, role, domain | Task involves user context |
-| `environment-setup.md` | System config, paths, tools | Action requires execution |
-| `workflows/<name>.md` | Step-by-step processes | Workflow is triggered |
+This prevents `MEMORY.md` and `USER.md` from being injected or written to.
 
-Files are **not auto-injected** — loaded on demand only. Most turns consume zero context window.
+### Layer 2: user-memory/ — File-Based Persistence
 
-### Layer 3: user-registry/ — Skill Management
+Replaces `MEMORY.md` / `USER.md` with categorized, unlimited-capacity files:
 
-Custom skills need more than creation — they need registration, trigger matching, and maintenance:
+| Path | Content | Read Trigger |
+|------|---------|-------------|
+| `user-memory/preferences.md` | Communication style, tone, habits | User references preferences |
+| `user-memory/user-profile.md` | Identity, role, domain, skills | Task requires user context |
+| `user-memory/environment-setup.md` | Toolchain, paths, installed packages | Execution requires environment |
+| `user-memory/workflows/<name>.md` | Step-by-step procedures | Specific workflow triggered |
 
-| File | Purpose |
-|------|---------|
-| `user_capabilities.json` | Skill registry with triggers, script paths, config |
-| `capability_finder.py` | Trigger word matcher (exact=100, contains=50, contained=10) |
-| `maintain.py` | Auto-detect new/deleted skills, sync registry, fix SKILL.md |
+These files are not auto-injected into the system prompt. They are loaded on demand via `read_file` / `search_files`. Most turns consume zero context window for memory. File size is bounded only by disk capacity, not by the 2200/1375 character limit.
 
----
+Write protocol (Section 3.3-3.4):
+1. Before writing: verify file existence via `search_files` or `read_file`
+2. If file exists: read full content → merge new content → write merged result
+3. If file does not exist: write directly
+4. After writing: `read_file` to confirm content integrity
 
-## Features
+### Layer 3: user-registry/ — Skill Registry
 
-- **Disable broken memory** — `memory_enabled: false`, replace with structured files
-- **Unlimited storage** — no 2200/1375 char limits, write to disk
-- **No auto-compression** — facts stay as written, never merged or dropped
-- **Skill auto-registration** — drop a directory, `maintain.py` registers it
-- **SKILL.md auto-fix** — missing frontmatter, name, description auto-added
-- **Validation** — empty triggers, broken script paths, unregistered orphans warned
-- **Closed loop** — create → register → match → execute → cleanup
-- **No manual JSON editing** — `user_capabilities.json` managed by script
-- **Privacy mitigation** — `allowed_chats` whitelist, read-only SOUL.md
+Custom skills require explicit registration to be reachable by the trigger matching system. Three components:
+
+| Component | Function |
+|-----------|----------|
+| `user_capabilities.json` | Registry: skill ID, trigger words, script path, dependencies, examples, configuration |
+| `capability_finder.py` | Matches user input against registered triggers using scoring (exact=100, substring=50, contained=10) |
+| `workflow-commands.json` | Maps skill ID to machine-readable execution steps |
+
+### Skill Maintenance (maintain.py)
+
+Two directories, two behaviors:
+
+**auto-generated/** — Agent-created skills after complex tasks.
+- New on disk → add to `self_created_skills.json` manifest + register in `user_capabilities.json`
+- Removed from disk → mark deleted in manifest + unregister from registry
+- Malformed `SKILL.md` → auto-fix (add frontmatter, name, description)
+
+**user-created/** — User-defined skills.
+- New on disk → register in `user_capabilities.json`
+- Removed from disk → unregister from registry
+- Does not modify skill content
+
+Validation checks (Section C):
+- Empty triggers (skill registered but unreachable)
+- Script path does not exist
+- Malformed `SKILL.md` (auto-fixed with report)
 
 ---
 
 ## Quick Start
 
 ```bash
-# 1. Copy the framework (includes everything)
+# 1. Deploy framework template
 cp -r framework/* ~/.hermes/
 
-# 2. Edit SOUL.md — replace placeholders in Section 1
-vim ~/.hermes/SOUL.md
+# 2. Configure identity — edit ~/.hermes/SOUL.md Section 1
+#    - Replace <YOUR_ROLE> with your role (e.g. "Backend Engineer")
+#    - Replace <YOUR_LANGUAGE> with your language (e.g. "English", "中文")
 
-#    1.1 Role: <YOUR_ROLE>       → "Backend Engineer", "Data Scientist", etc.
-#    1.2 Language: <YOUR_LANGUAGE> → "English", "Chinese", etc.
-
-# 3. Disable Hermes default memory (this framework manages its own)
+# 3. Disable native memory
 hermes config set memory.memory_enabled false
 hermes config set memory.user_profile_enabled false
 
-# 4. Run the maintenance script
+# 4. Run maintenance script to register existing skills
 ~/.hermes/hermes-agent/venv/bin/python \
   ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
 ```
 
 ---
 
-## How It Works
-
-### Memory Flow
-
-User speaks → SOUL.md Section 3.5 matches trigger keywords:
-
-| Keyword pattern | File |
-|----------------|------|
-| "I like...", "I prefer...", "Your tone should be..." | `user-memory/preferences.md` |
-| "I am...", "My name is...", "I work as..." | `user-memory/user-profile.md` |
-| "My system is...", "I use...", "I installed..." | `user-memory/environment-setup.md` |
-| "My steps are...", "First I do X, then Y..." | `user-memory/workflows/<name>.md` |
-
-Write protocol: `read_file → merge → write_file → read_file verify`
-
-### Skill Lifecycle
+## Repository Contents
 
 ```
-New skill on disk → maintain.py detects
-  → Auto-fixes SKILL.md (adds frontmatter if missing)
-  → Registers in user_capabilities.json
-  → Agent fills in triggers
-  → Skill is matchable
-
-Skill deleted → maintain.py detects → unregisters from registry
-```
-
-### Trigger Matching
-
-```
-User speaks → capability_finder.py
-  → Scores: exact=100, contains=50, contained=10
-  → Returns best match
-    → "skill" → execute script
-    → "direct_answer" → agent responds
-```
-
----
-
-## Directory Structure
-
-```
-~/.hermes/
-├── SOUL.md                            ← Governance rules (read-only anchor)
-├── skills/
-│   ├── auto-generated/                ← Agent self-learned skills
-│   │   ├── self_created_skills.json   ← Manifest
-│   │   └── <skill-name>/
-│   ├── user-created/                  ← User-defined skills
-│   │   └── <skill-name>/
-│   └── <category>/                    ← Bundled skills
-├── user-memory/                       ← Structured persistence
-│   ├── preferences.md
-│   ├── user-profile.md
-│   ├── environment-setup.md
-│   └── workflows/
-└── user-registry/
-    ├── user_capabilities.json         ← Skill registry
-    └── capability_finder.py           ← Trigger matcher
-```
-
----
-
-## Scripts
-
-### maintain.py
-
-Scans `auto-generated/` and `user-created/`. Detects new/deleted skills, syncs registry, auto-fixes SKILL.md, validates triggers and script paths.
-
-```bash
-~/.hermes/hermes-agent/venv/bin/python \
-  ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
-```
-
-### capability_finder.py
-
-Matches user input to registered skills using scoring algorithm.
-
-```bash
-~/.hermes/hermes-agent/venv/bin/python \
-  ~/.hermes/user-registry/capability_finder.py "generate image"
+hermes-soul-governance/
+├── README.md                    # This file
+├── README_CN.md                 # Chinese version
+├── SOUL.md                      # Governance rules (single source of truth)
+├── .gitignore                   # Excludes user data
+├── framework/                   # Deployable template
+│   ├── SOUL.md                  # Customizable rules (edit Section 1)
+│   ├── user-memory/             # Structured persistence (agent auto-fills)
+│   │   ├── preferences.md
+│   │   ├── user-profile.md
+│   │   ├── environment-setup.md
+│   │   └── workflows/
+│   ├── user-registry/
+│   │   ├── user_capabilities.json
+│   │   └── capability_finder.py
+│   └── skills/
+│       ├── auto-generated/      # Agent skills
+│       │   └── self_created_skills.json
+│       └── user-created/
+│           └── skill-maintenance/
+│               ├── scripts/maintain.py
+│               ├── test_maintain.py
+│               └── SKILL.md
+├── examples/
+│   ├── auto-generated/self_created_skills.json
+│   └── user_capabilities.json
+└── framework/skills/user-created/skill-maintenance/
+    ├── scripts/maintain.py      # Maintenance script
+    ├── test_maintain.py         # 11 test cases
+    └── SKILL.md                 # Agent-facing documentation
 ```
 
 ---
@@ -220,25 +158,17 @@ Matches user input to registered skills using scoring algorithm.
 python3 framework/skills/user-created/skill-maintenance/test_maintain.py
 ```
 
-11 tests: empty directory, new skill detection, SKILL.md auto-fix, registry sync, deletion, idempotency, manifest detection, mixed skills, validation — **all passing**.
-
----
-
-## Design Principles
-
-1. **Single source of truth** — SOUL.md is the only governance file
-2. **Read-before-write** — prevents data corruption
-3. **Separated concerns** — auto-generated, user-created, bundled skills
-4. **Non-destructive** — script never modifies user-created skills
-5. **Audit trail** — all changes logged with snapshots
+Test suite: empty directory, new skill detection, SKILL.md auto-fix, registry synchronization, deletion unregistration, idempotency, manifest consistency, mixed skill types, validation warnings, clean state upon removal. **11 tests, all passing.**
 
 ---
 
 ## Known Limitations
 
-- **Agent discipline** — SOUL.md ensures rules are read, not guaranteed to be followed. Works today; may vary with different models.
-- **Gateway privacy** — no `user_id` isolation in `session_search`. Mitigate with `allowed_chats` whitelist.
-- **Skill classification** — heuristic-based (session references, file size). Works for current patterns; may need adjustment.
+1. **Rule enforcement** — SOUL.md ensures rules are loaded into the system prompt, but compliance depends on the model's ability to follow instructions. This is inherent to LLM-based systems and not unique to this framework.
+
+2. **Skill classification** — The maintenance script identifies auto-generated skills using heuristic criteria (session reference files, reference count, file size, section count, presence of executable scripts). These heuristics match current generation patterns but may require adjustment if the agent's behavior changes.
+
+3. **Gateway privacy** — When running behind a messaging gateway (Telegram, Feishu, etc.), `session_search` operates on the entire `state.db` without per-user isolation. This is an architectural limitation of Hermes Agent's single-user data model. Current mitigation: use `allowed_chats` to restrict access to trusted users. Not a substitute for proper multi-tenant isolation.
 
 ---
 
