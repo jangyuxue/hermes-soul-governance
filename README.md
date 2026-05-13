@@ -1,10 +1,51 @@
 <p align="center">
   <br>
   <b>SOUL.md Governance Framework</b><br>
-  <i>Structured memory, skill lifecycle, and operational rules for Hermes Agent</i>
+  <i>Stop repeating yourself. Let the agent remember, organize, and improve.</i>
 </p>
 
 <br>
+
+---
+
+## The Problem
+
+Hermes Agent is powerful, but out of the box:
+
+- **No persistent memory** — every session starts from scratch. You tell the agent your preferences, environment, and workflows over and over.
+- **Skills are disposable** — after a complex debugging session or a tricky workflow, the knowledge disappears. Next time, the agent starts from zero.
+- **No quality control** — auto-generated skills pile up with no way to track what's useful and what's stale.
+- **Triggers are manual** — skills exist on disk but the agent can't find them because triggers are empty or missing.
+
+The result: you keep repeating yourself, and the agent never gets smarter over time.
+
+---
+
+## The Solution
+
+**SOUL.md** is a governance layer for Hermes Agent that turns it from a session-scoped assistant into a learning system.
+
+Three core capabilities:
+
+| Capability | What it does | Without it | With it |
+|------------|-------------|-----------|---------|
+| **Structured Memory** | User preferences, identity, environment, workflows are stored in persistent files | Agent forgets everything next session | Agent remembers your habits, tools, and processes |
+| **Skill Lifecycle** | Skills are auto-registered, validated, and cleaned up | Skills pile up unmanaged; triggers stay empty | Skills are tracked, reachable, and quality-checked |
+| **Trigger Matching** | User input is scored against all registered skill triggers | Agent can't find the right skill | Agent routes to the correct skill automatically |
+
+---
+
+## Features
+
+- **File-based memory** — preferences, profile, environment, and workflows persist across sessions
+- **Auto-registration** — drop a skill into a directory, `maintain.py` registers it automatically
+- **Self-healing** — malformed `SKILL.md` files are auto-fixed (missing frontmatter, name, description)
+- **Validation** — warns about empty triggers, broken script paths, unregistered orphans
+- **Closed loop** — create → register → match → execute → cleanup, all automated
+- **No manual JSON editing** — `user_capabilities.json` is managed entirely by the maintenance script
+- **Dual-language support** — triggers work in any language
+
+---
 
 ## Quick Start
 
@@ -26,23 +67,6 @@ hermes config set memory.user_profile_enabled false
 ~/.hermes/hermes-agent/venv/bin/python \
   ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
 ```
-
----
-
-## Overview
-
-**SOUL.md** is a single-source-of-truth configuration file injected into the agent's system prompt every turn. It governs:
-
-| Section | Topic |
-|---------|-------|
-| 1 | Identity & Role |
-| 2 | Response Standards |
-| 3 | Persistence — Write Protocol |
-| 4 | Retrieval Protocol |
-| 5 | Operational Constraints |
-| 6 | Skill Dispatch |
-| 7 | Skill Creation & Storage |
-| 8 | Compliance & Audit |
 
 ---
 
@@ -71,14 +95,12 @@ New skill on disk → maintain.py detects
 Skill deleted → maintain.py detects → unregisters from registry
 ```
 
-Skill types:
-
 | Type | Location | Created by | Managed by |
 |------|----------|------------|------------|
 | Auto-generated | `auto-generated/` | Agent (after complex tasks) | maintain.py + agent |
 | User-created | `user-created/` | User | maintain.py + agent |
 
-### Skill Matching
+### Trigger Matching
 
 ```
 User speaks → capability_finder.py
@@ -139,10 +161,10 @@ Reads `user_capabilities.json` and matches user input to registered skills using
 ## Testing
 
 ```bash
-python3 skills/skill-maintenance/test_maintain.py
+python3 framework/skills/user-created/skill-maintenance/test_maintain.py
 ```
 
-Test coverage: empty directory, new skill detection, SKILL.md auto-fix, registry sync, deletion unregister, idempotency, manifest detection, mixed skills, validation warnings, clean state — **11 tests, all passing**.
+11 tests: empty directory, new skill detection, SKILL.md auto-fix, registry sync, deletion unregister, idempotency, manifest detection, mixed skills, validation warnings, clean state — **all passing**.
 
 ---
 
