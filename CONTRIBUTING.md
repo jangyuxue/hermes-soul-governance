@@ -63,8 +63,16 @@ export HERMES_HOME=~/.hermes
 
 ## Running Tests
 
+**After deploying to `~/.hermes/`:**
+
 ```bash
-# From the repository root
+~/.hermes/hermes-agent/venv/bin/python \
+  ~/.hermes/skills/user-created/skill-maintenance/test_maintain.py
+```
+
+**Before deployment (from the repository root):**
+
+```bash
 python3 framework/skills/user-created/skill-maintenance/test_maintain.py
 ```
 
