@@ -13,28 +13,28 @@
 
 ```mermaid
 flowchart TD
-    subgraph Native["⚡ Hermes 原生记忆系统"]
+    subgraph Native["⚡ Hermes Native Memory"]
         direction TB
-        A1[Agent 调用 memory() 写入] --> B1[MEMORY.md / USER.md]
-        B1 --> C1{超出容量限制？\n2200 / 1375 字符}
-        C1 -->|是| D1[自动压缩：\n合并条目、丢弃上下文]
-        D1 --> E1[上下文退化。\n规则被覆盖。\n数据丢失。]
+        A1[Agent issues memory() call] --> B1[MEMORY.md / USER.md]
+        B1 --> C1{Chars exceeded?\\n2200 / 1375}
+        C1 -->|Yes| D1[Auto-compression:\\nmerge entries, discard context]
+        D1 --> E1[Context degraded.\\nRules overwritten.\\nData lost.]
         E1 -.-> B1
-        C1 -->|否| F1[追加写入。\n无分类。\n无优先级。]
+        C1 -->|No| F1[Appended.\\nNo category.\\nNo priority.]
     end
 
-    subgraph Soul["🛡️ SOUL.md 治理框架"]
+    subgraph Soul["🛡️ SOUL.md Governance"]
         direction TB
-        A2[Agent 调用 write_file] --> B2{先读后写\n检查}
-        B2 -->|文件已存在| C2[读取完整内容 →\n合并新旧数据]
-        B2 -->|文件不存在| D2[直接写入]
-        C2 --> E2[写入分类文件]
+        A2[Agent issues write_file call] --> B2{Read-before-write\\ncheck}
+        B2 -->|File exists| C2[Read full content →\\nmerge old + new]
+        B2 -->|File missing| D2[Write directly]
+        C2 --> E2[Write to categorized file]
         D2 --> E2
-        E2 --> F2[写后验证：\nread_file 确认完整性]
-        F2 --> G2[✅ 数据保留。\n有分类。\n可审计。]
+        E2 --> F2[Post-write verification:\\nread_file confirms integrity]
+        F2 --> G2[✅ Data preserved.\\nCategorized.\\nAudited.]
     end
 
-    Native -->|"问题：数据随时间退化"| Soul
+    Native -->|"Problem: data degrades over time"| Soul
 ```
 
 > **Hermes Agent 原生的 `MEMORY.md` 仅有 2200 字符上限，自动压缩循环会静默丢弃上下文。**
