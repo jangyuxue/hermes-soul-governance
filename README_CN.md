@@ -315,6 +315,7 @@ hermes-soul-governance/
 │   │   ├── preferences.md       # 沟通风格、习惯
 │   │   ├── user-profile.md      # 身份、角色
 │   │   ├── environment-setup.md # 工具链、路径
+│   │   ├── .backup/             # 写入前自动创建
 │   │   └── workflows/
 │   │       ├── README.md
 │   │       └── workflow-commands.json  # 机器可执行指令

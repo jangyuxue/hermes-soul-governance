@@ -323,6 +323,7 @@ hermes-soul-governance/
 │   │   ├── preferences.md       # Communication style, habits
 │   │   ├── user-profile.md      # Identity, role
 │   │   ├── environment-setup.md # Toolchain, paths
+│   │   ├── .backup/             # Auto-created before each write
 │   │   └── workflows/
 │   │       ├── README.md
 │   │       └── workflow-commands.json  # Machine-readable steps
