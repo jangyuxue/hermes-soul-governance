@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/jangyuxue/hermes-soul-governance/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <a href="#"><img src="https://img.shields.io/badge/python-3.8%2B-blue" alt="Python 3.8+"></a>
-  <a href="#"><img src="https://img.shields.io/badge/tests-8%20passing-brightgreen" alt="Tests Passing"></a>
+  <a href="#"><img src="https://img.shields.io/badge/tests-9%20passing-brightgreen" alt="Tests Passing"></a>
   <a href="https://github.com/jangyuxue/hermes-soul-governance/stargazers"><img src="https://img.shields.io/github/stars/jangyuxue/hermes-soul-governance?style=social" alt="Stars"></a>
 </p>
 
@@ -17,8 +17,6 @@
 
 > **Hermes Agent's native `MEMORY.md` has a 2200-character limit and auto-compression loop that silently discards context.**
 > SOUL.md replaces it with a **read-only governance anchor** + **structured file persistence** — no compression, no data loss.
-
-> **v1.1.0 — Skill Maintenance Overhaul** — Orphan migration, manifest description auto-sync, merge candidate detection, self-bootstrapping, dead code removal. [See changelog →](#v110---skill-maintenance-overhaul)
 
 ## 30-Second Quick Start
 
@@ -109,7 +107,7 @@ The result is a unidirectional pipeline: creation without maintenance. Skills ac
 This framework addresses the two problems described above. It provides infrastructure for:
 
 - Disabling the default memory system and replacing it with file-based, categorized persistence
-- Automating skill registration, validation, and cleanup
+- Automating skill registration, validation, cleanup, and merge detection
 - Maintaining a trigger-based skill retrieval system
 
 ---
@@ -217,12 +215,14 @@ Defines where skills live and how they're maintained:
 | Auto-generated | `auto-generated/` | Agent (after complex tasks) | `maintain.py` + agent |
 | User-created | `user-created/` | User | `maintain.py` (registry only) |
 
-The maintenance script (`maintain.py`) at `~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py`:
-- Scans both directories
-- Auto-registers new skills in `user_capabilities.json`
-- Auto-unregisters deleted skills
-- Fixes malformed `SKILL.md` (adds frontmatter, name, description)
-- Validates triggers (empty triggers = unreachable skill)
+The maintenance script (`maintain.py`) at `~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py` runs four phases in sequence:
+
+| Phase | What it does |
+|-------|-------------|
+| [Orphan] | Scans category directories, migrates misplaced non-bundled skills to `auto-generated/`, registers and tracks them in one pass |
+| [Sync] | Compares `auto-generated/` against manifest: detects new/deleted/revived skills, auto-syncs `description` changes from SKILL.md to both manifest and registry |
+| [Reg] | Checks `user-created/` registry consistency — adds missing entries, removes deleted ones. Never modifies skill content |
+| [Check] | Validates registry entries (empty triggers, broken paths), auto-fixes malformed SKILL.md (auto-generated only), and detects merge candidates via 5-axis scoring (name, content keywords, heading structure, cross-references, file layout) with three-layer anti-false-positive gates |
 
 #### Section 8: Compliance & Audit
 
@@ -311,7 +311,9 @@ hermes-soul-governance/
 ├── README.md                    # This file
 ├── README_CN.md                 # Chinese version
 ├── SOUL.md                      # Governance rules (core of the framework)
-├── RELEASE_NOTE_v1.0.0.md       # Release notes
+├── RELEASE_NOTE_v1.0.0.md       # v1.0.0 release notes
+├── RELEASE_NOTE_v1.1.0.md       # v1.1.0 release notes
+├── RELEASE_NOTE_v2.0.0.md       # v2.0.0 release notes
 ├── CONTRIBUTING.md              # Contribution guide
 ├── .gitignore
 ├── docs/
@@ -343,8 +345,7 @@ hermes-soul-governance/
 │   │           ├── README.md
 │   │           ├── SKILL.md
 │   │           ├── scripts/
-│   │           │   └── maintain.py    # Auto-register/validate/clean skills
-│   │           └── test_maintain.py   # 11 test cases
+│   │           │   └── maintain.py    # Auto-register/validate/clean/merge-detect skills
 │   └── output/                  # Agent output directories
 │       ├── README.md
 │       ├── images/
@@ -358,69 +359,13 @@ hermes-soul-governance/
 
 ---
 
-## Testing
-
-After deploying to `~/.hermes/`:
-
-```bash
-~/.hermes/hermes-agent/venv/bin/python \
-  ~/.hermes/skills/user-created/skill-maintenance/test_maintain.py
-```
-
-11 test cases: empty directory, new skill detection, SKILL.md auto-fix, registry sync, deletion unregister, idempotency, manifest consistency, mixed skill types, validation warnings, clean state. All passing.
-
-**Before deployment** (from the repository root):
-```bash
-python3 framework/skills/user-created/skill-maintenance/test_maintain.py
-```
-
----
-
 ## Known Limitations
 
 1. **Rule enforcement** — SOUL.md ensures rules are present in the system prompt, but compliance depends on model instruction-following capability. This is inherent to LLM-based systems.
 
-2. **Skill classification** — The maintenance script uses heuristic criteria (session reference files, reference count, file size) to classify auto-generated skills. These heuristics match current generation patterns but may require adjustment.
+2. **Merge detection is heuristic** — The 5-axis scoring identifies content overlap, but does not understand semantics. False positives are possible; always review candidates manually before merging. The three-layer gate (zero content, Jaccard < 0.15, < 2 axes) eliminates most coincidental matches but cannot guarantee zero errors.
 
----
-
-## Changelog
-
-### v1.1.0 — Skill Maintenance Overhaul (2026-05-13)
-
-**New features**
-
-| Feature | Description |
-|---------|-------------|
-| [Orphan] auto-migration | Scans all category directories, moves non-bundled skills to `auto-generated/` |
-| [Orphan] one-pass registry | Registers to `user_capabilities.json` during migration, no deferral |
-| [Orphan] manifest field sync | Updates stale `description/status/registered` fields in manifest |
-| [Orphan] dual bundled check | Dir name + SKILL.md frontmatter `name:` against `.bundled_manifest` |
-| [Sync] description auto-sync | SKILL.md description change → manifest + registry auto-update |
-| [Check] merge detection | Pairwise name + topic overlap scoring (threshold >= 0.3) |
-| Self-bootstrapping | Creates missing registry, manifest, directories on first run |
-| Output notifications | Prints "Created directory: ..." on each auto-created path |
-
-**Removed dead code**
-
-~112 lines removed: `classify_unknown_skill` + 5 helpers, `detect_merge_candidates` (dead), `get_skill_author` (unused return), `ROLLBACK_LOG` (never written).
-
-**Fixes**
-
-- Execution order: [Orphan] → [Sync] → [Reg] → [Check] (was A→B→E→C)
-- Tag labels: [Orphan] / [Sync] / [Reg] / [Check] (was jumping letters)
-- Snapshot completeness: missing `misplaced_changes` field added
-- SKILL.md auto-fix scope: auto-generated/ only (was touching user-created/)
-- Code comments: all-English (was mixed CN/EN)
-- Line count: 731 total (20 functions), code structure cleaned up
-
-**Still manual**
-
-1. Merge detection reports only — script cannot understand semantic content
-2. Triggers remain empty by design — user decides trigger phrases
-3. Script path must be set by user per skill
-4. `skill_manage` delete → next [Sync] cycle clears registry (intentional batch delay)
-5. `~/.hermes/skills/` root must exist before first run
+3. **Skill classification** — The maintenance script uses heuristic criteria (session reference files, reference count, file size) to classify auto-generated skills. These heuristics match current generation patterns but may require adjustment.
 
 ---
 

@@ -61,22 +61,21 @@ cd hermes-soul-governance
 export HERMES_HOME=~/.hermes
 ```
 
-## Running Tests
-
-**After deploying to `~/.hermes/`:**
-
-```bash
-~/.hermes/hermes-agent/venv/bin/python \
-  ~/.hermes/skills/user-created/skill-maintenance/test_maintain.py
-```
+## Verifying the Setup
 
 **Before deployment (from the repository root):**
 
 ```bash
-python3 framework/skills/user-created/skill-maintenance/test_maintain.py
+# Deploy first, then run maintain.py directly
+cp framework/SOUL.md ~/.hermes/SOUL.md
+cp -r framework/user-memory ~/.hermes/
+cp -r framework/user-registry ~/.hermes/
+cp -r framework/skills/user-created ~/.hermes/skills/
+~/.hermes/hermes-agent/venv/bin/python \
+  ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
 ```
 
-All 11 tests should pass. If they don't, check whether your Hermes Agent installation path differs from the default (`~/.hermes/`).
+No test suite is included — verify the script works by running it and checking its output.
 
 ## Coding Guidelines
 

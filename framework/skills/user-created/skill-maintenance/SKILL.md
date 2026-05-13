@@ -1,7 +1,7 @@
 ---
 name: skill-maintenance
-description: "Automated skill maintenance tool. Full scan: [Orphan] migrate misplaced skills from category dirs to auto-generated/ (registers to user_capabilities.json and manifest in one pass), [Sync] auto-generated/ vs manifest diff (new/deleted/revived + description auto-sync to registry), [Reg] user-created/ registry consistency (add/remove, never modifies content), [Check] validation warnings + merge candidate detection. Portability: auto-creates missing registry, manifest, and directories. SKILL.md auto-fix for auto-generated/ only. Merge detection: active auto-generated skills compared pairwise (name + topic overlap score >= 0.3)."
-version: 5.7.0
+description: "Automated skill maintenance tool. Full scan: [Orphan] migrate misplaced skills from category dirs to auto-generated/ (register + manifest in one pass), [Sync] auto-generated/ vs manifest diff (new/deleted/revived + description auto-sync), [Reg] user-created/ registry consistency (add/remove, no content changes), [Check] validation warnings + multi-dimensional merge detection. Portability: auto-creates missing registry, manifest, and directories. SKILL.md auto-fix for auto-generated/ only."
+version: 5.8.0
 author: Hermes Agent
 license: MIT
 metadata:
@@ -60,63 +60,35 @@ Before any scan step runs, the script ensures all required infrastructure exists
 
 ### [Orphan] Misplaced Skills Auto-Migration (SOUL.md Enforcement)
 
-Scans EVERY category directory under `skills/` that is NOT `auto-generated/`, `user-created/`,
-`.hub`, `.backup`, or `.history`. For each skill found:
+Scans category directories under `skills/` for skills that landed in the wrong place.
+Moves non-bundled skills to `auto-generated/`, registers them in the capability registry,
+and adds them to the manifest — all in one pass.
 
-1. **Check if bundled** — `is_bundled_skill()` does TWO checks against `.bundled_manifest`:
-   - Directory name matches manifest key? → system skill, skip
-   - SKILL.md frontmatter `name:` field matches manifest key? → system skill, skip
-   - Neither matches → non-bundled skill, proceed to migrate
+What to look for in output:
+- `✓ X: <dir>/ → auto-generated/` — skill was relocated
+- `→ Registered X → user_capabilities.json` — new registry entry created
+- `→ Registry updated: X` — existing entry updated with new path
+- `+ Manifest added: X` — new manifest entry created
+- `! X: target auto-generated/X already exists` — conflict, needs manual merge
+- `No misplaced skills found` — everything where it should be (idempotent)
 
-2. **Check target conflict** — if `auto-generated/<name>/` already exists on disk:
-   - Flag: "! X: target auto-generated/X already exists (manual merge needed)"
-   - Do NOT overwrite
-
-3. **Move directory** — `shutil.move(source_path, target_path)`
-   - Print: "✓ X: devops/ → auto-generated/"
-
-4. **Register or update in user_capabilities.json** (one step, not deferred):
-   - Skill IS already registered → update `category` to `auto-generated`, rewrite `script` path
-   - Skill is NOT registered → create entry: `{id, name, category:"auto-generated", triggers:[], ...}`
-   - Print: "→ Registry updated: X" or "→ Registered X → user_capabilities.json"
-
-5. **Add or update manifest entry** (`self_created_skills.json`):
-   - Skill NOT in manifest → add: `{name, status:"active", registered:true, note:"Migrated from...", ...}`
-   - Skill IS in manifest → compare `description`, `status`, `registered` fields; update if stale
-   - Print: "+ Manifest added: X" or "~ Manifest updated: X description"
-
-This closes the SOUL.md enforcement loop: SOUL.md rule 7.2 says agent-created skills
-MUST go to `auto-generated/` or `user-created/`. [Orphan] ensures any skill that lands
-in a bundled category directory gets relocated, registered, and tracked in one pass.
-
-**Verification:** Run maintain.py again. If [Orphan] reports "No misplaced skills found",
+**Verification:** Run the script again. If [Orphan] reports "No misplaced skills found",
 the migration is complete and idempotent.
 
 ### [Sync] Auto-generated Manifest Diff
 
-Scans `auto-generated/` directory and compares against `self_created_skills.json`:
+Compares `auto-generated/` directory against `self_created_skills.json` and syncs them:
 
-**New skill detection:** Disk has but manifest does not
-- Auto-fix SKILL.md format (`ensure_skill_md_standard()`)
-- Add to manifest with `status: active`
-- Register in `user_capabilities.json` if not already there
+- **New skill** — disk has a skill the manifest doesn't → auto-fix SKILL.md format, add to manifest, register in capability registry
+- **Deleted skill** — manifest says active but disk removed → mark as deleted in manifest, unregister from registry
+- **Revived skill** — manifest says deleted but disk reappears → restore to active, re-register
+- **Description auto-sync** — reads each active skill's `description` from SKILL.md frontmatter and propagates changes to both manifest and registry. Edit a skill's SKILL.md description and it syncs everywhere on the next scan. No manual three-way sync needed.
 
-**Deletion detection:** Manifest has active but disk does not
-- Mark `status: deleted` in manifest
-- Unregister from `user_capabilities.json`
-
-**Revival detection:** Manifest has deleted but disk reappears
-- Mark `status: active` in manifest
-- Re-register in `user_capabilities.json`
-
-**Description auto-sync** — After all sync operations, [Sync] reads each
-active skill's `description` from SKILL.md frontmatter and compares it
-against both `self_created_skills.json` and `user_capabilities.json`:
-- SKILL.md description differs from manifest → update manifest entry
-- SKILL.md description differs from registry → update registry entry
-- Print: "~ Manifest description sync: X" / "~ Registry description sync: X"
-- This ensures editing a skill's SKILL.md description propagates everywhere
-  in one scan. No manual three-way sync needed.
+What to look for in output:
+- `+ Manifest added: X` or `~ Manifest updated: X` — manifest sync
+- `+ Registered X → user_capabilities.json` — new skill registered
+- `~ Manifest description sync: X` / `~ Registry description sync: X` — description propagated
+- `No changes` — manifest is consistent with disk
 
 ### [Reg] User-created Registry Check
 
@@ -129,22 +101,16 @@ Scans `user-created/` and checks registry consistency only:
 
 After all operations, runs checks in order:
 
-1. **Registry entry validation** (all skills, including user-created):
-   - Empty triggers → "! X: triggers is empty — skill unreachable by capability_finder.py"
-   - Broken script paths → "! X: script not found — {path}"
-
-2. **SKILL.md format validation** (auto-generated/ only):
-   - Missing frontmatter → prepend name/description/version/author
-   - Missing `name:` → add from directory name
-   - Missing `description:` → auto-generate
-   - Missing H1 heading → add
-   - Print: "! X: SKILL.md auto-fixed ({changes})"
-
+1. **Registry entry validation** (all skills) — checks for empty triggers (skill unreachable by capability_finder) and broken script paths
+2. **SKILL.md format validation** (auto-generated/ only) — fixes missing frontmatter, name, description, or H1 heading. Auto-fixed skills need another run to register.
 3. **Merge candidate detection** (auto-generated/ only):
    - Compare every active auto-generated skill pairwise
-   - Score = name token overlap (+0.3) + topic keyword overlap (+0.1/keyword, max 0.4)
-   - Report pairs with score >= 0.3 → "! X <-> Y (score=0.4, topic overlap: {...})"
+   - Multi-dimensional scoring across name, content, structure, cross-refs, and file layout
+   - Report pairs with score >= 0.30 and evidence from at least 2 dimensions:
+     → `! skill-A <-> skill-B (score=0.8, axes=[...], evidence details)`
+   - Higher score + more evidence axes = more reliable recommendation
    - Deleted skills are excluded from merge detection
+   - **Always review candidates manually before merging** — the scoring is heuristic
 
 ## Portability (Self-Bootstrapping)
 
@@ -175,15 +141,6 @@ The script NEVER exits with an error for missing files — it creates what it ne
   --target <skill-name>
 ```
 
-## Testing
-
-```bash
-~/.hermes/hermes-agent/venv/bin/python \
-  ~/.hermes/skills/user-created/skill-maintenance/scripts/test_maintain.py
-```
-
-8 test cases: empty directory, auto-generated new, user-created register, user-created delete/unregister, idempotency, manifest deletion, mixed scenarios, post-clear.
-
 ## Pitfalls
 
 ### Don't rewrite user's existing skills without permission
@@ -208,26 +165,19 @@ This prevents false positives when a bundled skill's directory name differs from
 
 ### Merge detection scope: auto-generated/ only
 
-`detect_merge_candidates()` only scans active manifest entries (auto-generated/).
-User-created/ skills are never included in merge suggestions.
+Only active manifest entries (auto-generated/) are scanned for merge candidates.
+User-created/ skills are never included — they are hand-crafted by the user, not agent-generated.
 
 ### Triggers empty for auto-generated is BY DESIGN, not a bug
 
-Auto-generated skills are registered with `triggers: []`. This is a deliberate human-in-the-loop:
-user decides whether to route the skill and what natural phrases trigger it.
+Auto-generated skills are registered with empty triggers. The user decides
+whether to enable them and what natural phrases trigger the skill.
 
-### Dead code removal is required, not optional
+### Read full file before editing the skill's own files
 
-After any major refactor, `grep` all function definitions and verify each is called. Remove unused constants like `ROLLBACK_LOG`. Run all tests after cleanup.
-
-### Code comments must be all-English
-
-No Chinese characters in `maintain.py` — all comments, docstrings, and section headers in English.
-Output labels: `[Orphan]`, `[Sync]`, `[Reg]`, `[Check]`.
-
-### Directory creation must notify the user
-
-When creating missing directories, print "Created directory: auto-generated/" so the user knows what happened. Silent creation is confusing.
+When patching `maintain.py` or editing this `SKILL.md`, use `skill_view()` (no offset/limit)
+to read the full file before calling `skill_manage(action='patch')`. Partial reads miss context.
+SOUL.md 3.3.2 requires reading full content before writing.
 
 ## Three Data Files
 
@@ -240,10 +190,11 @@ When creating missing directories, print "Created directory: auto-generated/" so
 ## References
 
 - `scripts/maintain.py` — The script itself
-- `scripts/test_maintain.py` — 8 test cases
 - `references/session-2026-05-13-soulmd-enforcement-gap.md` — [Orphan] auto-migration origin
 - `references/session-2026-05-13-migration-run.md` — Live migration (4 skills relocated)
 - `references/session-2026-05-13-code-cleanup.md` — Dead code removal + output labels
 - `references/session-2026-05-13-portability.md` — Self-bootstrapping
 - `references/session-2026-05-13-merge-and-desc-sync.md` — Merge hermes-agent-setup ↔ hermes-wsl-tool-setup + description auto-sync added
 - `references/session-2026-05-13-merge-restore-cleanup.md` — Merge detection restore
+- `references/session-2026-05-13-merge-rigor-enhancement.md` — Jaccard gate + `.split()` fix + false positive calibration
+- `references/session-2026-05-13-skills-as-usage-guides.md` — SKILL.md 写作原则（格式一致、简洁优先、操作纪律）

@@ -100,65 +100,177 @@ def count_references(skill_path):
 
 
 def get_skill_topic_keywords(skill_path):
-    """Extract topic keywords from SKILL.md headings and tags."""
+    """Extract topic keywords from SKILL.md: headings, tags, and description field.
+    
+    Does NOT extract body content — boilerplate words like "skill", "use", "setup"
+    appear in every SKILL.md and cause false merge positives.
+    """
     keywords = set()
     skill_md = os.path.join(skill_path, "SKILL.md")
     if not os.path.exists(skill_md):
         return keywords
     with open(skill_md, "r", encoding="utf-8") as f:
         content = f.read(3000)
+
+    STOPWORDS = {
+        'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+        'have', 'has', 'had', 'do', 'does', 'did', 'doing', 'will', 'would',
+        'can', 'could', 'may', 'might', 'shall', 'should', 'to', 'too', 'for',
+        'of', 'in', 'on', 'at', 'by', 'with', 'from', 'as', 'and', 'or', 'but',
+        'not', 'no', 'nor', 'this', 'that', 'these', 'those', 'it', 'its',
+        'you', 'your', 'we', 'our', 'they', 'their', 'he', 'she', 'him', 'her',
+        'all', 'any', 'each', 'every', 'some', 'most', 'many', 'much', 'few',
+        'use', 'used', 'using', 'uses', 'also', 'very', 'just', 'only', 'even',
+        'than', 'then', 'when', 'what', 'which', 'who', 'whom', 'where', 'how',
+        'into', 'over', 'about', 'after', 'before', 'between', 'through', 'during',
+        'such', 'more', 'less', 'other', 'another', 'both', 'each', 'own',
+        'skill', 'setup', 'help', 'need', 'want', 'work', 'working', 'works',
+        'based', 'built', 'like', 'take', 'make', 'made', 'way', 'well',
+    }
+
+    # 1. Headings
     for match in re.finditer(r"##\s+(.*?)(?:\n|$)", content):
         keywords.add(match.group(1).strip().lower())
+
+    # 2. Tags
     tags_match = re.search(r"tags:\s*\[(.*?)\]", content)
     if tags_match:
         for tag in tags_match.group(1).split(","):
             tag = tag.strip().strip("\"'")
             if tag:
                 keywords.add(tag.lower())
+
+    # 3. Description field — extract meaningful concepts
+    desc_match = re.search(r'description:\s*["\']?(.*?)["\']?\s*(?:\n|platforms|version|author|tags)', content)
+    if not desc_match:
+        desc_match = re.search(r'description:\s*["\']?(.*?)(?:\n[a-z])', content)
+    if desc_match:
+        desc = desc_match.group(1).strip().rstrip('"\'')
+        desc_words = re.findall(r'[a-zA-Z][a-zA-Z-]{2,}', desc.lower())
+        for w in desc_words:
+            w_clean = w.strip("-")
+            if w_clean not in STOPWORDS and len(w_clean) > 2:
+                keywords.add(w_clean)
+
     return keywords
 
 
+def get_skill_headings(skill_path):
+    headings = set()
+    skill_md = os.path.join(skill_path, "SKILL.md")
+    if not os.path.exists(skill_md):
+        return headings
+    with open(skill_md, "r", encoding="utf-8") as f:
+        content = f.read(3000)
+    for match in re.finditer(r"##\s+(.*?)(?:\n|$)", content):
+        h = match.group(1).strip().lower()
+        if h:
+            headings.add(h)
+    return headings
+
+
+def get_skill_related(skill_path):
+    related = set()
+    skill_md = os.path.join(skill_path, "SKILL.md")
+    if not os.path.exists(skill_md):
+        return related
+    with open(skill_md, "r", encoding="utf-8") as f:
+        content = f.read(2000)
+    match = re.search(r"related_skills:\s*\[(.*?)\]", content)
+    if match:
+        for item in match.group(1).split(","):
+            item = item.strip().strip("\"'")
+            if item:
+                related.add(item)
+    return related
+
+
 def detect_merge_candidates(manifest, registry):
-    """Compare all active auto-generated skills pairwise, return merge suggestions.
-    
-    Only scans auto-generated/ skills (tracked in manifest). Does NOT scan
-    user-created/ skills — those are hand-crafted by the user and should not
-    be suggested for merging.
-    """
     candidates = []
     active = [s for s in manifest.get("self_created_skills", []) if s["status"] == "active"]
-    name_keywords = {}
 
+    skill_data = {}
     for s in active:
-        path = os.path.join(AUTO_GEN_DIR, s["name"])
-        kws = get_skill_topic_keywords(path)
-        name_keywords[s["name"]] = kws
+        name = s["name"]
+        path = os.path.join(AUTO_GEN_DIR, name)
+        skill_data[name] = {
+            "keywords": get_skill_topic_keywords(path),
+            "headings": get_skill_headings(path),
+            "related": get_skill_related(path),
+            "has_refs": os.path.isdir(os.path.join(path, "references")),
+            "has_scripts": os.path.isdir(os.path.join(path, "scripts")),
+        }
 
     for i in range(len(active)):
         for j in range(i + 1, len(active)):
             a, b = active[i]["name"], active[j]["name"]
+            da, db = skill_data[a], skill_data[b]
             score = 0.0
+            axes_used = set()
             reasons = []
 
-            # Name overlap
-            a_parts = set(a.lower().replace("-", " ").split("_"))
-            b_parts = set(b.lower().replace("-", " ").split("_"))
-            overlap = a_parts & b_parts
-            if overlap:
-                score += 0.3
-                reasons.append(f"name overlap: {overlap}")
+            # [A] Name overlap (+0.20)
+            a_parts = set(a.lower().replace("-", " ").split())
+            b_parts = set(b.lower().replace("-", " ").split())
+            name_overlap = a_parts & b_parts
+            if name_overlap:
+                score += 0.20
+                axes_used.add("name")
+                reasons.append(f"name overlap: {name_overlap}")
 
-            # Keyword overlap
-            ka = name_keywords.get(a, set())
-            kb = name_keywords.get(b, set())
-            if ka and kb:
-                kw_overlap = ka & kb
-                if kw_overlap:
-                    score += min(0.4, 0.1 * len(kw_overlap))
-                    reasons.append(f"topic overlap: {kw_overlap}")
+            # [B] Content keyword overlap (max +0.30)
+            ka, kb = da["keywords"], db["keywords"]
+            kw_overlap = ka & kb
+            content_union = ka | kb
+            has_kw = bool(kw_overlap)
+            jaccard = len(kw_overlap) / len(content_union) if content_union else 0.0
+            if name_overlap and not has_kw:
+                continue
+            if ka and kb and kw_overlap:
+                kw_score = min(0.30, 0.10 * len(kw_overlap))
+                score += kw_score
+                axes_used.add("content")
+                reasons.append(f"topic: {len(kw_overlap)} kw (j={jaccard:.2f})")
 
-            if score >= 0.3:
-                candidates.append(f"  ! {a} <-> {b} (score={score:.1f}, {', '.join(reasons)})")
+            # [C] Heading structure overlap (+0.10 if j >= 0.25)
+            ha, hb = da["headings"], db["headings"]
+            if ha and hb:
+                h_overlap = ha & hb
+                h_union = ha | hb
+                h_jaccard = len(h_overlap) / len(h_union) if h_union else 0.0
+                if h_jaccard >= 0.25:
+                    score += 0.10
+                    axes_used.add("struct")
+                    reasons.append(f"headings (j={h_jaccard:.2f})")
+
+            # [D] Related-skills cross-reference (+0.20)
+            if a in db["related"] or b in da["related"]:
+                score += 0.20
+                axes_used.add("xref")
+                reasons.append("related_skills ref")
+
+            # [E] File structure (+0.05)
+            struct_score = 0
+            if da["has_refs"] and db["has_refs"]:
+                struct_score += 1
+            if da["has_scripts"] and db["has_scripts"]:
+                struct_score += 1
+            if struct_score >= 1:
+                score += 0.05
+                axes_used.add("fstruct")
+                reasons.append("similar structure")
+
+            # Gates
+            if len(axes_used) < 2:
+                continue
+            if not name_overlap and jaccard < 0.15:
+                continue
+            if score >= 0.30:
+                axes_str = "+".join(sorted(axes_used))
+                candidates.append(
+                    f"  ! {a} <-> {b} (score={score:.1f}, axes=[{axes_str}], "
+                    + ", ".join(reasons) + ")"
+                )
 
     return candidates
 
