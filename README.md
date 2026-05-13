@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/jangyuxue/hermes-soul-governance/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <a href="#"><img src="https://img.shields.io/badge/python-3.8%2B-blue" alt="Python 3.8+"></a>
-  <a href="#"><img src="https://img.shields.io/badge/tests-11%20passing-brightgreen" alt="Tests Passing"></a>
+  <a href="#"><img src="https://img.shields.io/badge/tests-8%20passing-brightgreen" alt="Tests Passing"></a>
   <a href="https://github.com/jangyuxue/hermes-soul-governance/stargazers"><img src="https://img.shields.io/github/stars/jangyuxue/hermes-soul-governance?style=social" alt="Stars"></a>
 </p>
 
@@ -412,7 +412,7 @@ python3 framework/skills/user-created/skill-maintenance/test_maintain.py
 - Snapshot completeness: missing `misplaced_changes` field added
 - SKILL.md auto-fix scope: auto-generated/ only (was touching user-created/)
 - Code comments: all-English (was mixed CN/EN)
-- Line count: 725 → 717, readability improved
+- Line count: 731 total (20 functions), code structure cleaned up
 
 **Still manual**
 

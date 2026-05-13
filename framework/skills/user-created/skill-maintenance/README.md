@@ -19,7 +19,7 @@ Scans `auto-generated/` and `user-created/` skill directories to keep the regist
 | File | Purpose |
 |------|---------|
 | `scripts/maintain.py` | The maintenance script |
-| `test_maintain.py` | 11 test cases |
+| `test_maintain.py` | 8 test cases |
 | `SKILL.md` | Skill documentation for the agent |
 
 ## Usage

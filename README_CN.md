@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/jangyuxue/hermes-soul-governance/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <a href="#"><img src="https://img.shields.io/badge/python-3.8%2B-blue" alt="Python 3.8+"></a>
-  <a href="#"><img src="https://img.shields.io/badge/tests-11%20passing-brightgreen" alt="Tests Passing"></a>
+  <a href="#"><img src="https://img.shields.io/badge/tests-8%20passing-brightgreen" alt="Tests Passing"></a>
   <a href="https://github.com/jangyuxue/hermes-soul-governance/stargazers"><img src="https://img.shields.io/github/stars/jangyuxue/hermes-soul-governance?style=social" alt="Stars"></a>
 </p>
 
@@ -404,7 +404,7 @@ python3 framework/skills/user-created/skill-maintenance/test_maintain.py
 - 快照补全：补上缺失的 `misplaced_changes`
 - SKILL.md 修复范围：仅 auto-generated/（之前误修了 user-created/）
 - 注释语言：全英文（原中英混杂）
-- 行数：725 → 717，可读性提升
+- 行数：731 行（20 个函数），代码结构清理
 
 **仍需人工**
 
