@@ -21,28 +21,30 @@
 ## 30 秒快速上手
 
 ```bash
-# 1. 部署框架模板到你的 Hermes 安装目录
-cp -r framework/* ~/.hermes/
+# 部署核心组件（先阅读各目录说明）
+cp framework/SOUL.md ~/.hermes/SOUL.md
+cp -r framework/user-memory ~/.hermes/
+cp -r framework/user-registry ~/.hermes/
+cp -r framework/skills/user-created ~/.hermes/skills/
 
-# 2. 配置你的角色和语言
+# 配置你的角色和语言
 vim ~/.hermes/SOUL.md
 #    → 第 1 节：替换 <YOUR_ROLE> 和 <YOUR_LANGUAGE>
 
-# 3. 关闭 Hermes 原生记忆系统
+# 关闭 Hermes 原生记忆系统
 hermes config set memory.memory_enabled false
 hermes config set memory.user_profile_enabled false
 
-# 4. 运行维护脚本，同步技能注册表
+# 运行维护脚本，同步技能注册表
 ~/.hermes/hermes-agent/venv/bin/python \
   ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
-
-# 5. 验证
-~/.hermes/hermes-agent/venv/bin/python \
-  ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
-# 预期输出："No changes" — 一切同步
 ```
 
-[完整部署指南 →](#快速开始)
+⚠️ **部署前请阅读各目录中的 README 了解其用途：**
+- `~/.hermes/user-memory/` → 结构化记忆文件（偏好、档案等）
+- `~/.hermes/user-registry/` → 技能发现系统
+- `~/.hermes/skills/` → 技能脚本与维护（不会覆盖已有的 auto-generated）
+- `~/.hermes/output/` → agent 文件输出目录
 
 ---
 
@@ -220,47 +222,61 @@ memory:
 ## 快速开始
 
 ```bash
-# 0. 前置条件：必须已安装 Hermes Agent
-#    如未安装：curl -fsSL https://raw.githubusercontent.com/... | bash
+# ============================================
+# 部署 SOUL.md 治理框架
+# ============================================
+# 前置条件：Hermes Agent 必须已安装在 ~/.hermes/
 
-# 1. 部署框架模板
-cp -r framework/* ~/.hermes/
+# 1. 部署 SOUL.md（治理锚点 - 替换默认的 SOUL.md）
+cp framework/SOUL.md ~/.hermes/SOUL.md
 
-#    这会向 ~/.hermes/ 添加 SOUL.md、user-memory/、user-registry/、
-#    skills/、output/，并覆盖默认的 SOUL.md。
-#    如果之前自定义过 SOUL.md，请先备份。
+# 2. 部署 user-memory/（分类记忆文件）
+#    创建：preferences.md, user-profile.md, environment-setup.md, workflows/
+#    阅读：cat ~/.hermes/user-memory/README.md
+cp -r framework/user-memory ~/.hermes/
 
-# 2. 编辑 SOUL.md — 替换第 1 节的占位符
+# 3. 部署 user-registry/（技能发现系统）
+#    创建：capability_finder.py, user_capabilities.json
+#    阅读：cat ~/.hermes/user-registry/README.md
+cp -r framework/user-registry ~/.hermes/
+
+# 4. 合并 skills/ - 只部署 user-created/ 部分
+#    重要：不会覆盖 auto-generated/，你已有的技能不受影响
+#    阅读：cat ~/.hermes/skills/user-created/skill-maintenance/README.md
+cp -r framework/skills/user-created ~/.hermes/skills/
+
+# 5. 创建 output/ 目录（agent 文件输出位置）
+mkdir -p ~/.hermes/output/{images,documents,data,temp}
+
+# ============================================
+# 部署后配置
+# ============================================
+
+# 6. 编辑 SOUL.md — 替换第 1 节的占位符
 vim ~/.hermes/SOUL.md
 #    1.1 Role: <YOUR_ROLE>       → "后端工程师"
 #    1.2 Language: <YOUR_LANGUAGE> → "中文"
 
-# 3. 关闭 Hermes 默认记忆
-#    原生的 MEMORY.md 和 USER.md 不再使用。
-#    可以保留（不影响）或删除。
+# 7. 关闭 Hermes 默认记忆系统
+#    MEMORY.md 和 USER.md 保留在磁盘上（不影响），但不再使用
 hermes config set memory.memory_enabled false
 hermes config set memory.user_profile_enabled false
 #
 #    如果 hermes CLI 不可用，直接编辑 config.yaml：
-#
 #    vim ~/.hermes/config.yaml
-#
-#    找到或添加 memory 配置段：
-#
-#    memory:
-#      memory_enabled: false
-#      user_profile_enabled: false
-#
-#    保存文件后重启 Hermes 使配置生效。
+#    添加：
+#      memory:
+#        memory_enabled: false
+#        user_profile_enabled: false
 
-# 4. 运行维护脚本，注册已有技能
+# 8. 运行维护脚本，注册所有技能
 ~/.hermes/hermes-agent/venv/bin/python \
   ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
 
-# 5. 验证一切正常
+# 9. 验证一切同步
 ~/.hermes/hermes-agent/venv/bin/python \
   ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
-# 预期输出："No changes"（说明一切同步）
+# 预期输出："No changes" — 所有技能已注册并同步
 ```
 
 ---
@@ -272,44 +288,48 @@ hermes-soul-governance/
 ├── README.md                    # 本文档（英文版）
 ├── README_CN.md                 # 中文版
 ├── SOUL.md                      # 治理规则（框架核心）
+├── RELEASE_NOTE_v1.0.0.md       # 发行说明
+├── CONTRIBUTING.md              # 贡献指南
 ├── .gitignore
+├── docs/
+│   └── assets/
+│       └── architecture.svg     # 架构对比图
 ├── framework/                   # 可部署模板 — 复制到 ~/.hermes/
 │   ├── README.md                # 目录说明
 │   ├── SOUL.md                  # 与根目录 SOUL.md 相同（含占位符）
-│   ├── user-memory/
+│   ├── user-memory/             # 分类记忆存储
 │   │   ├── README.md            # 文件功能与触发词说明
 │   │   ├── preferences.md       # 沟通风格、习惯
 │   │   ├── user-profile.md      # 身份、角色
 │   │   ├── environment-setup.md # 工具链、路径
-│   │   ├── .backup/             # 写入前自动备份
 │   │   └── workflows/
+│   │       ├── README.md
 │   │       └── workflow-commands.json  # 机器可执行指令
-│   ├── user-registry/
-│   │   ├── README.md            # 组件说明
+│   ├── user-registry/           # 能力发现系统
+│   │   ├── README.md
 │   │   ├── user_capabilities.json
 │   │   └── capability_finder.py
-│   ├── skills/
+│   ├── skills/                  # 技能管理
 │   │   ├── auto-generated/
 │   │   │   ├── README.md
 │   │   │   └── self_created_skills.json
 │   │   └── user-created/
+│   │       ├── README.md
 │   │       └── skill-maintenance/
-│   │           ├── scripts/maintain.py
-│   │           ├── test_maintain.py
-│   │           └── SKILL.md
+│   │           ├── README.md
+│   │           ├── SKILL.md
+│   │           ├── scripts/
+│   │           │   └── maintain.py    # 自动注册/校验/清理技能
+│   │           └── test_maintain.py   # 11 个测试用例
 │   └── output/                  # 输出目录
 │       ├── README.md
 │       ├── images/
 │       ├── documents/
 │       ├── data/
 │       └── temp/
-├── examples/
-│   ├── auto-generated/self_created_skills.json
-│   └── user_capabilities.json
-└── framework/skills/user-created/skill-maintenance/
-    ├── scripts/maintain.py
-    ├── test_maintain.py
-    └── SKILL.md
+└── examples/
+    ├── auto-generated/self_created_skills.json
+    └── user_capabilities.json
 ```
 
 ---

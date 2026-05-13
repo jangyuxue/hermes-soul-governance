@@ -21,26 +21,30 @@
 ## 30-Second Quick Start
 
 ```bash
-# 1. Deploy the framework template to your Hermes installation
-cp -r framework/* ~/.hermes/
+# Deploy core components (read directory descriptions first!)
+cp framework/SOUL.md ~/.hermes/SOUL.md
+cp -r framework/user-memory ~/.hermes/
+cp -r framework/user-registry ~/.hermes/
+cp -r framework/skills/user-created ~/.hermes/skills/
 
-# 2. Configure your role and language
+# Configure your role and language
 vim ~/.hermes/SOUL.md
 #    → Section 1: Replace <YOUR_ROLE> and <YOUR_LANGUAGE>
 
-# 3. Disable Hermes native memory system
+# Disable Hermes native memory system
 hermes config set memory.memory_enabled false
 hermes config set memory.user_profile_enabled false
 
-# 4. Run maintenance script to sync skill registry
+# Run maintenance script to sync skill registry
 ~/.hermes/hermes-agent/venv/bin/python \
   ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
-
-# 5. Verify
-~/.hermes/hermes-agent/venv/bin/python \
-  ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
-# Expected: "No changes" — everything is in sync
 ```
+
+⚠️ **Read the per-directory READMEs to understand what goes where:**
+- `~/.hermes/user-memory/` → structured memory files (preferences, profile, etc.)
+- `~/.hermes/user-registry/` → skill capability discovery
+- `~/.hermes/skills/` → skill scripts and maintenance (auto-generated kept intact)
+- `~/.hermes/output/` → agent file output directories
 
 [Full deployment guide →](#quick-start)
 
@@ -226,48 +230,61 @@ Enforcement rules:
 ## Quick Start
 
 ```bash
-# 0. Prerequisite: Hermes Agent must be installed
-#    If not, install first: curl -fsSL https://raw.githubusercontent.com/... | bash
+# ============================================
+# DEPLOY SOUL.md GOVERNANCE FRAMEWORK
+# ============================================
+# Prerequisite: Hermes Agent must be installed at ~/.hermes/
 
-# 1. Deploy framework template
-cp -r framework/* ~/.hermes/
+# 1. Deploy SOUL.md (the governance anchor - replaces default)
+cp framework/SOUL.md ~/.hermes/SOUL.md
 
-#    This adds SOUL.md, user-memory/, user-registry/, skills/, output/
-#    to your ~/.hermes/ directory, replacing the default SOUL.md.
-#    Your existing ~/.hermes/SOUL.md will be overwritten.
-#    Backup first if you customized it.
+# 2. Deploy user-memory/ (categorized persistence files)
+#    Creates: preferences.md, user-profile.md, environment-setup.md, workflows/
+#    Read: cat ~/.hermes/user-memory/README.md
+cp -r framework/user-memory ~/.hermes/
 
-# 2. Edit SOUL.md — replace placeholders in Section 1
+# 3. Deploy user-registry/ (capability discovery)
+#    Creates: capability_finder.py, user_capabilities.json
+#    Read: cat ~/.hermes/user-registry/README.md
+cp -r framework/user-registry ~/.hermes/
+
+# 4. Merge skills/ - only user-created/ content
+#    IMPORTANT: Does NOT touch auto-generated/ (your existing skills safe)
+#    Read: cat ~/.hermes/skills/user-created/skill-maintenance/README.md
+cp -r framework/skills/user-created ~/.hermes/skills/
+
+# 5. Create output/ directories (agent file output locations)
+mkdir -p ~/.hermes/output/{images,documents,data,temp}
+
+# ============================================
+# POST-DEPLOY CONFIGURATION
+# ============================================
+
+# 6. Edit SOUL.md — replace placeholders in Section 1
 vim ~/.hermes/SOUL.md
 #    1.1 Role: <YOUR_ROLE>       → "Backend Engineer"
 #    1.2 Language: <YOUR_LANGUAGE> → "English"
 
-# 3. Disable Hermes default memory
-#    The native MEMORY.md and USER.md files are no longer used.
-#    They can be left in place (harmless) or deleted.
+# 7. Disable Hermes default memory system
+#    MEMORY.md and USER.md remain on disk (harmless) but no longer used
 hermes config set memory.memory_enabled false
 hermes config set memory.user_profile_enabled false
 #
-#    If the hermes CLI is unavailable, edit config.yaml directly:
-#
+#    If hermes CLI is unavailable, edit config.yaml directly:
 #    vim ~/.hermes/config.yaml
-#
-#    Find or add the memory section:
-#
-#    memory:
-#      memory_enabled: false
-#      user_profile_enabled: false
-#
-#    Save the file and restart Hermes for changes to take effect.
+#    Add:
+#      memory:
+#        memory_enabled: false
+#        user_profile_enabled: false
 
-# 4. Run maintenance script to register existing skills
+# 8. Run maintenance script to register and sync all skills
 ~/.hermes/hermes-agent/venv/bin/python \
   ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
 
-# 5. Verify everything works
+# 9. Verify everything is in sync
 ~/.hermes/hermes-agent/venv/bin/python \
   ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
-# Expected output: "No changes" (indicates everything is in sync)
+# Expected output: "No changes" — all skills registered and synced
 ```
 
 ---
@@ -279,44 +296,48 @@ hermes-soul-governance/
 ├── README.md                    # This file
 ├── README_CN.md                 # Chinese version
 ├── SOUL.md                      # Governance rules (core of the framework)
+├── RELEASE_NOTE_v1.0.0.md       # Release notes
+├── CONTRIBUTING.md              # Contribution guide
 ├── .gitignore
+├── docs/
+│   └── assets/
+│       └── architecture.svg     # Architecture comparison diagram
 ├── framework/                   # Deployable template — copy to ~/.hermes/
 │   ├── README.md                # Quick reference for each directory
 │   ├── SOUL.md                  # Same as root SOUL.md (with placeholders)
-│   ├── user-memory/
-│   │   ├── README.md            # File descriptions and triggers
+│   ├── user-memory/             # Categorized memory storage
+│   │   ├── README.md            # File descriptions and trigger keywords
 │   │   ├── preferences.md       # Communication style, habits
 │   │   ├── user-profile.md      # Identity, role
 │   │   ├── environment-setup.md # Toolchain, paths
-│   │   ├── .backup/             # Auto-backup before writes
 │   │   └── workflows/
+│   │       ├── README.md
 │   │       └── workflow-commands.json  # Machine-readable steps
-│   ├── user-registry/
-│   │   ├── README.md            # Component descriptions
+│   ├── user-registry/           # Capability discovery system
+│   │   ├── README.md
 │   │   ├── user_capabilities.json
 │   │   └── capability_finder.py
-│   ├── skills/
+│   ├── skills/                  # Skill management
 │   │   ├── auto-generated/
 │   │   │   ├── README.md
 │   │   │   └── self_created_skills.json
 │   │   └── user-created/
+│   │       ├── README.md
 │   │       └── skill-maintenance/
-│   │           ├── scripts/maintain.py
-│   │           ├── test_maintain.py
-│   │           └── SKILL.md
-│   └── output/                  # Agent output directory
+│   │           ├── README.md
+│   │           ├── SKILL.md
+│   │           ├── scripts/
+│   │           │   └── maintain.py    # Auto-register/validate/clean skills
+│   │           └── test_maintain.py   # 11 test cases
+│   └── output/                  # Agent output directories
 │       ├── README.md
 │       ├── images/
 │       ├── documents/
 │       ├── data/
 │       └── temp/
-├── examples/
-│   ├── auto-generated/self_created_skills.json
-│   └── user_capabilities.json
-└── framework/skills/user-created/skill-maintenance/
-    ├── scripts/maintain.py
-    ├── test_maintain.py
-    └── SKILL.md
+└── examples/
+    ├── auto-generated/self_created_skills.json
+    └── user_capabilities.json
 ```
 
 ---
