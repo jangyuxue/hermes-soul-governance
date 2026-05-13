@@ -18,6 +18,8 @@
 > **Hermes Agent 原生的 `MEMORY.md` 仅有 2200 字符上限，自动压缩循环会静默丢弃上下文。**
 > SOUL.md 用**只读治理锚点** + **结构化文件持久化**替代它——无压缩，无数据丢失。
 
+> **v1.1.0 — 技能维护大升级** — Orphan 归位迁移、描述自动同步、合并检测、自举能力。 [查看更新日志 →](#v110-技能维护大升级)
+
 ## 30 秒快速上手
 
 ```bash
@@ -371,6 +373,46 @@ python3 framework/skills/user-created/skill-maintenance/test_maintain.py
 1. **规则执行** — SOUL.md 能确保规则加载到系统提示词中，但模型是否遵守取决于其指令遵循能力。这是基于 LLM 的系统的固有属性。
 
 2. **技能分类** — 维护脚本使用启发式标准（session 引用文件、引用数量、文件大小）判断技能类型。当前规则与现有模式匹配，但 agent 行为变化时可能需要调整。
+
+---
+
+## 更新日志
+
+### v1.1.0 — 技能维护大升级 (2026-05-13)
+
+**新增功能**
+
+| 功能 | 说明 |
+|------|------|
+| [Orphan] 归位迁移 | 扫描所有分类目录，非 bundled 技能自动搬到 `auto-generated/` |
+| [Orphan] 一次性注册 | 搬目录同时写入 `user_capabilities.json`，无需等待 [Sync] |
+| [Orphan] manifest 字段同步 | 对比 description/status/registered，过时自动更新 |
+| [Orphan] 双重 bundled 判断 | 目录名 + SKILL.md frontmatter name，防误判 |
+| [Sync] 描述自动同步 | SKILL.md 描述变化 → manifest + registry 自动更新 |
+| [Check] 合并检测 | 两两对比 active 技能，name + topic 重叠 ≥ 0.3 报候选 |
+| 自举能力 | 缺 registry 创建、缺目录创建、从不 exit |
+| 输出通知 | 创建目录时打印告知用户 |
+
+**删除的死代码**
+
+~112 行：`classify_unknown_skill` + 5 个辅助函数、未调用的 `detect_merge_candidates`、返回值无用的 `get_skill_author`、从未写入的 `ROLLBACK_LOG`。
+
+**修复的问题**
+
+- 执行顺序：[Orphan] → [Sync] → [Reg] → [Check]（原来是 A→B→E→C 跳跃）
+- 标签规范：[Orphan]/[Sync]/[Reg]/[Check]（原来是跳字母）
+- 快照补全：补上缺失的 `misplaced_changes`
+- SKILL.md 修复范围：仅 auto-generated/（之前误修了 user-created/）
+- 注释语言：全英文（原中英混杂）
+- 行数：725 → 717，可读性提升
+
+**仍需人工**
+
+1. 合并检测只报不修——语义理解脚本做不了
+2. triggers 为空是设计使然——只有你知道触发词
+3. script 路径需手动配置
+4. skill_manage delete → 下一轮 [Sync] 才清注册表（批量工具合理延迟）
+5. `~/.hermes/skills/` 根目录需在首次运行前存在
 
 ---
 

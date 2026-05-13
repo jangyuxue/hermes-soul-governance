@@ -18,6 +18,8 @@
 > **Hermes Agent's native `MEMORY.md` has a 2200-character limit and auto-compression loop that silently discards context.**
 > SOUL.md replaces it with a **read-only governance anchor** + **structured file persistence** — no compression, no data loss.
 
+> **v1.1.0 — Skill Maintenance Overhaul** — Orphan migration, manifest description auto-sync, merge candidate detection, self-bootstrapping, dead code removal. [See changelog →](#v110---skill-maintenance-overhaul)
+
 ## 30-Second Quick Start
 
 ```bash
@@ -379,6 +381,46 @@ python3 framework/skills/user-created/skill-maintenance/test_maintain.py
 1. **Rule enforcement** — SOUL.md ensures rules are present in the system prompt, but compliance depends on model instruction-following capability. This is inherent to LLM-based systems.
 
 2. **Skill classification** — The maintenance script uses heuristic criteria (session reference files, reference count, file size) to classify auto-generated skills. These heuristics match current generation patterns but may require adjustment.
+
+---
+
+## Changelog
+
+### v1.1.0 — Skill Maintenance Overhaul (2026-05-13)
+
+**New features**
+
+| Feature | Description |
+|---------|-------------|
+| [Orphan] auto-migration | Scans all category directories, moves non-bundled skills to `auto-generated/` |
+| [Orphan] one-pass registry | Registers to `user_capabilities.json` during migration, no deferral |
+| [Orphan] manifest field sync | Updates stale `description/status/registered` fields in manifest |
+| [Orphan] dual bundled check | Dir name + SKILL.md frontmatter `name:` against `.bundled_manifest` |
+| [Sync] description auto-sync | SKILL.md description change → manifest + registry auto-update |
+| [Check] merge detection | Pairwise name + topic overlap scoring (threshold >= 0.3) |
+| Self-bootstrapping | Creates missing registry, manifest, directories on first run |
+| Output notifications | Prints "Created directory: ..." on each auto-created path |
+
+**Removed dead code**
+
+~112 lines removed: `classify_unknown_skill` + 5 helpers, `detect_merge_candidates` (dead), `get_skill_author` (unused return), `ROLLBACK_LOG` (never written).
+
+**Fixes**
+
+- Execution order: [Orphan] → [Sync] → [Reg] → [Check] (was A→B→E→C)
+- Tag labels: [Orphan] / [Sync] / [Reg] / [Check] (was jumping letters)
+- Snapshot completeness: missing `misplaced_changes` field added
+- SKILL.md auto-fix scope: auto-generated/ only (was touching user-created/)
+- Code comments: all-English (was mixed CN/EN)
+- Line count: 725 → 717, readability improved
+
+**Still manual**
+
+1. Merge detection reports only — script cannot understand semantic content
+2. Triggers remain empty by design — user decides trigger phrases
+3. Script path must be set by user per skill
+4. `skill_manage` delete → next [Sync] cycle clears registry (intentional batch delay)
+5. `~/.hermes/skills/` root must exist before first run
 
 ---
 

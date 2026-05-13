@@ -6,7 +6,12 @@ v4 → v5: Added user-created/ directory check
          Manifest only tracks skills under auto-generated/
 
 Modes:
-  Global scan (default): scan auto-generated/ to diff manifest + scan user-created/ to check registry
+  Global scan (default): 
+    1. [Orphan]  Scan category dirs → move non-bundled to auto-generated/
+    2. [Sync]    auto-generated/ vs manifest diff
+    3. [Reg]     user-created/ vs registry consistency
+    4. [Check]   Validate warnings (empty triggers, missing paths, format fix,
+                 merge candidate detection)
   Target analysis:       analyze a single skill in detail
 
 Usage:
@@ -29,7 +34,6 @@ REGISTRY_PATH = os.path.expanduser("~/.hermes/user-registry/user_capabilities.js
 MANIFEST_PATH = os.path.join(AUTO_GEN_DIR, "self_created_skills.json")
 HISTORY_DIR = os.path.join(AUTO_GEN_DIR, ".history")
 BACKUP_DIR = os.path.join(AUTO_GEN_DIR, ".backup")
-ROLLBACK_LOG = os.path.join(HISTORY_DIR, "changes.log")
 
 
 def load_json(path):
@@ -95,40 +99,8 @@ def count_references(skill_path):
     return 0
 
 
-def has_session_references(skill_path):
-    ref_dir = os.path.join(skill_path, "references")
-    if os.path.exists(ref_dir):
-        for f in os.listdir(ref_dir):
-            if re.search(r"session-\d{4}", f, re.IGNORECASE):
-                return True
-    skill_md = os.path.join(skill_path, "SKILL.md")
-    if os.path.exists(skill_md):
-        with open(skill_md, "r", encoding="utf-8") as f:
-            content = f.read(5000)
-        if re.search(r"session[\s-]*\d{4}", content, re.IGNORECASE):
-            return True
-        if re.search(r"\d{4}-\d{2}-\d{2}", content):
-            return True
-    return False
-
-
-def has_scripts(skill_path):
-    script_dir = os.path.join(skill_path, "scripts")
-    if os.path.exists(script_dir):
-        return len([f for f in os.listdir(script_dir) if f.endswith(".py")])
-    return 0
-
-
-def get_skill_section_count(skill_path):
-    skill_md = os.path.join(skill_path, "SKILL.md")
-    if not os.path.exists(skill_md):
-        return 0
-    with open(skill_md, "r", encoding="utf-8") as f:
-        content = f.read()
-    return len(re.findall(r"^##\s+", content, re.MULTILINE))
-
-
 def get_skill_topic_keywords(skill_path):
+    """Extract topic keywords from SKILL.md headings and tags."""
     keywords = set()
     skill_md = os.path.join(skill_path, "SKILL.md")
     if not os.path.exists(skill_md):
@@ -146,55 +118,48 @@ def get_skill_topic_keywords(skill_path):
     return keywords
 
 
-def classify_unknown_skill(name, skill_path):
-    session_refs = has_session_references(skill_path)
-    ref_count = count_references(skill_path)
-    size = get_skill_size(skill_path)
-    scripts = has_scripts(skill_path)
-    sections = get_skill_section_count(skill_path)
-
-    if session_refs:
-        return "auto-generated"
-    if ref_count >= 5:
-        return "auto-generated"
-    if ref_count >= 3 and size > 15000:
-        return "auto-generated"
-    if sections >= 5 and scripts == 0:
-        return "auto-generated"
-    if scripts > 0:
-        return "user-intentional"
-    return "user-intentional"
-
-
-def detect_merge_candidates(new_name, new_path, existing_skills):
+def detect_merge_candidates(manifest, registry):
+    """Compare all active auto-generated skills pairwise, return merge suggestions.
+    
+    Only scans auto-generated/ skills (tracked in manifest). Does NOT scan
+    user-created/ skills — those are hand-crafted by the user and should not
+    be suggested for merging.
+    """
     candidates = []
-    new_keywords = get_skill_topic_keywords(new_path)
-    new_lower = new_name.lower()
+    active = [s for s in manifest.get("self_created_skills", []) if s["status"] == "active"]
+    name_keywords = {}
 
-    for existing_name, existing_info in existing_skills.items():
-        if existing_info.get("status") != "active":
-            continue
-        score = 0.0
-        reasons = []
+    for s in active:
+        path = os.path.join(AUTO_GEN_DIR, s["name"])
+        kws = get_skill_topic_keywords(path)
+        name_keywords[s["name"]] = kws
 
-        name_parts = set(existing_name.lower().replace("-", " ").split("_"))
-        new_parts = set(new_lower.replace("-", " ").split("_"))
-        overlap = name_parts & new_parts
-        if overlap:
-            score += 0.3
-            reasons.append(f"Name overlap: {overlap}")
+    for i in range(len(active)):
+        for j in range(i + 1, len(active)):
+            a, b = active[i]["name"], active[j]["name"]
+            score = 0.0
+            reasons = []
 
-        existing_keywords = get_skill_topic_keywords(existing_info.get("path", ""))
-        if new_keywords and existing_keywords:
-            kw_overlap = new_keywords & existing_keywords
-            if kw_overlap:
-                score += min(0.4, 0.1 * len(kw_overlap))
-                reasons.append(f"Topic overlap: {kw_overlap}")
+            # Name overlap
+            a_parts = set(a.lower().replace("-", " ").split("_"))
+            b_parts = set(b.lower().replace("-", " ").split("_"))
+            overlap = a_parts & b_parts
+            if overlap:
+                score += 0.3
+                reasons.append(f"name overlap: {overlap}")
 
-    if score >= 0.3:
-            candidates.append((existing_name, round(score, 2), "; ".join(reasons)))
+            # Keyword overlap
+            ka = name_keywords.get(a, set())
+            kb = name_keywords.get(b, set())
+            if ka and kb:
+                kw_overlap = ka & kb
+                if kw_overlap:
+                    score += min(0.4, 0.1 * len(kw_overlap))
+                    reasons.append(f"topic overlap: {kw_overlap}")
 
-    candidates.sort(key=lambda x: -x[1])
+            if score >= 0.3:
+                candidates.append(f"  ! {a} <-> {b} (score={score:.1f}, {', '.join(reasons)})")
+
     return candidates
 
 
@@ -267,11 +232,6 @@ def sync_user_created_registry(registry):
     # 1. Disk has but registry does not → add
     for name, path in disk_skills.items():
         if name not in reg_ids:
-            # Auto-fix SKILL.md if not standard
-            fixed, msg = ensure_skill_md_standard(path, name)
-            if fixed:
-                changes.append(f"  + Fixed SKILL.md: {name} ({msg})")
-
             description = get_skill_description(path)
             entry = {
                 "id": name,
@@ -372,10 +332,183 @@ def sync_auto_generated_manifest(manifest, registry):
             changes.append(f"  ✗ Unregistered {s['name']} (deleted)")
             reg_ids.discard(s["name"])
 
+    # Sync description: SKILL.md → manifest + registry
+    for name, path in disk_skills.items():
+        if name in known:
+            disk_desc = get_skill_description(path)
+            man = known[name]
+            if man.get("description") != disk_desc:
+                man["description"] = disk_desc
+                changes.append(f"  ~ Manifest description sync: {name}")
+                # Also update registry if present
+                for cap in registry.get("capabilities", []):
+                    if cap["id"] == name and cap.get("description") != disk_desc:
+                        cap["description"] = disk_desc
+                        changes.append(f"  ~ Registry description sync: {name}")
+
     # Update registered status for all skills
     for s in manifest["self_created_skills"]:
         s["registered"] = s["name"] in reg_ids
     manifest["last_updated"] = datetime.now().strftime("%Y-%m-%d")
+
+    return changes
+
+
+# ============ Orphan Detection & Migration ============
+
+SKILLS_BASE = os.path.expanduser("~/.hermes/skills")
+BUNDLED_MANIFEST_PATH = os.path.join(SKILLS_BASE, ".bundled_manifest")
+
+EXCLUDED_CATEGORIES = {"auto-generated", "user-created", ".hub", ".backup", ".history"}
+
+
+def load_bundled_manifest():
+    """Load .bundled_manifest and return set of bundled skill names."""
+    if not os.path.exists(BUNDLED_MANIFEST_PATH):
+        return set()
+    bundled = set()
+    with open(BUNDLED_MANIFEST_PATH, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line and ":" in line:
+                bundled.add(line.split(":")[0])
+    return bundled
+
+
+def get_category_directories():
+    """Get all category directories under skills/ (exclude system/internal dirs)."""
+    cats = []
+    if not os.path.exists(SKILLS_BASE):
+        return cats
+    for item in sorted(os.listdir(SKILLS_BASE)):
+        if item.startswith(".") or item in EXCLUDED_CATEGORIES:
+            continue
+        item_path = os.path.join(SKILLS_BASE, item)
+        if os.path.isdir(item_path):
+            cats.append(item_path)
+    return cats
+
+
+def migrate_misplaced_skill(name, source_path, registry, manifest, bundled):
+    """Move a misplaced skill to auto-generated/ and update records.
+
+    Returns list of change descriptions.
+    """
+    changes = []
+    target_path = os.path.join(AUTO_GEN_DIR, name)
+
+    # Conflict: target already exists
+    if os.path.exists(target_path):
+        changes.append(f"  ! {name}: target auto-generated/{name} already exists (manual merge needed)")
+        return changes
+
+    # Determine origin info before moving
+    category_hint = os.path.basename(os.path.dirname(source_path))
+
+    # Move directory
+    shutil.move(source_path, target_path)
+    changes.append(f"  ✓ {name}: {category_hint}/ → auto-generated/")
+
+    # Register or update in user_capabilities.json
+    reg_ids = {c["id"] for c in registry.get("capabilities", [])}
+    if name in reg_ids:
+        for cap in registry["capabilities"]:
+            if cap["id"] == name:
+                old_cat = cap.get("category", "")
+                cap["category"] = "auto-generated"
+                # Rewrite script path if present
+                script = cap.get("script")
+                if script:
+                    new_path = os.path.join(AUTO_GEN_DIR, name, os.path.basename(script.replace("~", os.path.expanduser("~"))))
+                    cap["script"] = new_path.replace(os.path.expanduser("~"), "~")
+                changes.append(f"  → Registry updated: {name} (category: {old_cat} → auto-generated)")
+    else:
+        description = get_skill_description(target_path)
+        entry = {
+            "id": name,
+            "name": name.replace("-", " ").title(),
+            "category": "auto-generated",
+            "triggers": [],
+            "description": description or f"Auto-generated skill: {name}",
+            "script": None,
+            "dependencies": [],
+            "examples": [],
+        }
+        registry["capabilities"].append(entry)
+        changes.append(f"  → Registered {name} → user_capabilities.json")
+        reg_ids.add(name)
+
+    # Add or update manifest entry
+    known = {s["name"]: s for s in manifest.get("self_created_skills", [])}
+    description = get_skill_description(target_path)
+    if name not in known:
+        entry = {
+            "name": name,
+            "type": "auto-generated",
+            "description": description,
+            "status": "active",
+            "category": "auto-generated",
+            "registered": True,
+            "note": f"Migrated from {category_hint}/ ({datetime.now().strftime('%Y-%m-%d')})",
+        }
+        manifest["self_created_skills"].append(entry)
+        changes.append(f"  + Manifest added: {name}")
+    else:
+        existing = known[name]
+        if existing.get("description") != description:
+            existing["description"] = description
+            changes.append(f"  ~ Manifest updated: {name} description")
+        if existing.get("status") != "active":
+            existing["status"] = "active"
+            changes.append(f"  ~ Manifest updated: {name} status → active")
+        if not existing.get("registered"):
+            existing["registered"] = True
+            changes.append(f"  ~ Manifest updated: {name} registered → True")
+
+    return changes
+
+
+def is_bundled_skill(name, path, bundled):
+    """Check if a skill is bundled by matching directory name OR SKILL.md name field."""
+    if name in bundled:
+        return True
+    # Also check the SKILL.md frontmatter 'name:' field
+    skill_name = get_skill_name_from_frontmatter(path)
+    if skill_name and skill_name in bundled:
+        return True
+    return False
+
+
+def get_skill_name_from_frontmatter(skill_path):
+    """Extract 'name:' from SKILL.md frontmatter."""
+    skill_md = os.path.join(skill_path, "SKILL.md")
+    if not os.path.exists(skill_md):
+        return None
+    with open(skill_md, "r", encoding="utf-8") as f:
+        content = f.read(2000)
+    # Only match inside frontmatter (between --- markers)
+    if not content.startswith("---"):
+        return None
+    end = content.find("---", 3)
+    if end == -1:
+        return None
+    frontmatter = content[3:end]
+    match = re.search(r"^name:\s*(.*?)$", frontmatter, re.MULTILINE)
+    return match.group(1).strip() if match else None
+
+
+def scan_and_migrate_misplaced(registry, manifest):
+    """Orphan: Scan category dirs for non-bundled skills, migrate to auto-generated/."""
+    changes = []
+    bundled = load_bundled_manifest()
+
+    # Scan each category directory
+    for cat_dir in get_category_directories():
+        for name, path in sorted(scan_skills_in_dir(cat_dir).items()):
+            if is_bundled_skill(name, path, bundled):
+                continue  # Bundled system skill, leave it
+            result = migrate_misplaced_skill(name, path, registry, manifest, bundled)
+            changes.extend(result)
 
     return changes
 
@@ -392,12 +525,24 @@ def run_global_scan():
     print("=" * 66)
     print()
 
-    # Load registry
+    # Load registry — create default if missing for portability
     registry = load_json(REGISTRY_PATH)
     if registry is None:
-        print("  [ERROR] Registry not found")
-        sys.exit(1)
+        registry = {
+            "version": "1.0",
+            "description": "User custom capabilities registry",
+            "capabilities": [],
+        }
+        print("    Created new registry: user_capabilities.json")
     backup_file(REGISTRY_PATH)
+
+    # Ensure target directories exist
+    if not os.path.exists(AUTO_GEN_DIR):
+        os.makedirs(AUTO_GEN_DIR, exist_ok=True)
+        print(f"    Created directory: auto-generated/")
+    if not os.path.exists(USER_CREATED_DIR):
+        os.makedirs(USER_CREATED_DIR, exist_ok=True)
+        print(f"    Created directory: user-created/")
 
     # Load manifest
     manifest = load_json(MANIFEST_PATH)
@@ -413,8 +558,21 @@ def run_global_scan():
 
     reg_before = len(registry["capabilities"])
 
-    # ========== Part A: Auto-generated Manifest Diff ==========
-    print("  [A] Auto-generated manifest diff...")
+    # ========== Orphan Detection & Migration ==========
+    # Run FIRST: move non-bundled skills from category dirs to auto-generated/
+    # so Sync can pick them up in the same run.
+    print("  [Orphan] Misplaced skill check...")
+    misplaced_changes = scan_and_migrate_misplaced(registry, manifest)
+    if misplaced_changes:
+        for c in misplaced_changes:
+            print(c)
+    else:
+        print("    No misplaced skills found")
+    print()
+
+    # ========== Sync: Auto-generated Manifest Diff ==========
+    # After orphan migration, all misplaced skills are now in auto-generated/.
+    print("  [Sync] Auto-generated manifest diff...")
     auto_changes = sync_auto_generated_manifest(manifest, registry)
     if auto_changes:
         for c in auto_changes:
@@ -423,8 +581,8 @@ def run_global_scan():
         print("    No changes")
     print()
 
-    # ========== Part B: User-created Registry Check ==========
-    print("  [B] User-created registry check...")
+    # ========== Reg: User-created Registry Check ==========
+    print("  [Reg] User-created registry check...")
     uc_changes = sync_user_created_registry(registry)
     if uc_changes:
         for c in uc_changes:
@@ -434,7 +592,7 @@ def run_global_scan():
     print()
 
     # ========== Validation ==========
-    print("  [C] Validation warnings...")
+    print("  [Check] Validation warnings...")
     warnings = []
 
     # Check registry entries
@@ -452,8 +610,8 @@ def run_global_scan():
             if not os.path.exists(script_path):
                 warnings.append(f"  ! {cap_id}: script not found — {script}")
 
-    # Check SKILL.md format for all skills on disk
-    for skill_dir in [AUTO_GEN_DIR, USER_CREATED_DIR]:
+    # Check SKILL.md format for auto-generated skills only
+    for skill_dir in [AUTO_GEN_DIR]:
         if not os.path.exists(skill_dir):
             continue
         for item in os.listdir(skill_dir):
@@ -463,6 +621,13 @@ def run_global_scan():
                 if fixed:
                     warnings.append(f"  ! {item}: SKILL.md auto-fixed ({msg})")
                     warnings.append(f"    → re-run to register")
+
+    # Merge candidate detection
+    merge_warnings = detect_merge_candidates(manifest, registry)
+    if merge_warnings:
+        warnings.append("")
+        for m in merge_warnings:
+            warnings.append(m)
 
     if warnings:
         for w in warnings:
@@ -482,6 +647,7 @@ def run_global_scan():
     snapshot = {
         "run_id": run_id,
         "timestamp": datetime.now().isoformat(),
+        "misplaced_changes": misplaced_changes,
         "auto_changes": auto_changes,
         "user_created_changes": uc_changes,
         "reg_before": reg_before,
@@ -514,7 +680,7 @@ def run_global_scan():
     print(f"  Registry total: {len(registry['capabilities'])} entries")
     print()
 
-    all_changes = auto_changes + uc_changes
+    all_changes = auto_changes + uc_changes + misplaced_changes
     summary = {
         "version": 5,
         "timestamp": datetime.now().isoformat(),
