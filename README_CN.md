@@ -1,10 +1,70 @@
 <p align="center">
   <br>
   <b>SOUL.md 治理框架</b><br>
-  <i>针对 Hermes Agent 记忆系统与技能系统的架构性缺陷，通过结构化治理层提供解决方案。</i>
+  <i>用不可变治理层替代 Hermes Agent 脆弱的记忆压缩循环。</i>
 </p>
 
-<br>
+<p align="center">
+  <a href="https://github.com/jangyuxue/hermes-soul-governance/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+  <a href="#"><img src="https://img.shields.io/badge/python-3.8%2B-blue" alt="Python 3.8+"></a>
+  <a href="#"><img src="https://img.shields.io/badge/tests-11%20passing-brightgreen" alt="Tests Passing"></a>
+  <a href="https://github.com/jangyuxue/hermes-soul-governance/stargazers"><img src="https://img.shields.io/github/stars/jangyuxue/hermes-soul-governance?style=social" alt="Stars"></a>
+</p>
+
+```mermaid
+flowchart TD
+    subgraph Native["⚡ Hermes 原生记忆系统"]
+        direction TB
+        A1[Agent 调用 memory() 写入] --> B1[MEMORY.md / USER.md]
+        B1 --> C1{超出容量限制？\n2200 / 1375 字符}
+        C1 -->|是| D1[自动压缩：\n合并条目、丢弃上下文]
+        D1 --> E1[上下文退化。\n规则被覆盖。\n数据丢失。]
+        E1 -.-> B1
+        C1 -->|否| F1[追加写入。\n无分类。\n无优先级。]
+    end
+
+    subgraph Soul["🛡️ SOUL.md 治理框架"]
+        direction TB
+        A2[Agent 调用 write_file] --> B2{先读后写\n检查}
+        B2 -->|文件已存在| C2[读取完整内容 →\n合并新旧数据]
+        B2 -->|文件不存在| D2[直接写入]
+        C2 --> E2[写入分类文件]
+        D2 --> E2
+        E2 --> F2[写后验证：\nread_file 确认完整性]
+        F2 --> G2[✅ 数据保留。\n有分类。\n可审计。]
+    end
+
+    Native -->|"问题：数据随时间退化"| Soul
+```
+
+> **Hermes Agent 原生的 `MEMORY.md` 仅有 2200 字符上限，自动压缩循环会静默丢弃上下文。**
+> SOUL.md 用**只读治理锚点** + **结构化文件持久化**替代它——无压缩，无数据丢失。
+
+## 30 秒快速上手
+
+```bash
+# 1. 部署框架模板到你的 Hermes 安装目录
+cp -r framework/* ~/.hermes/
+
+# 2. 配置你的角色和语言
+vim ~/.hermes/SOUL.md
+#    → 第 1 节：替换 <YOUR_ROLE> 和 <YOUR_LANGUAGE>
+
+# 3. 关闭 Hermes 原生记忆系统
+hermes config set memory.memory_enabled false
+hermes config set memory.user_profile_enabled false
+
+# 4. 运行维护脚本，同步技能注册表
+~/.hermes/hermes-agent/venv/bin/python \
+  ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
+
+# 5. 验证
+~/.hermes/hermes-agent/venv/bin/python \
+  ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
+# 预期输出："No changes" — 一切同步
+```
+
+[完整部署指南 →](#快速开始)
 
 ---
 
@@ -235,7 +295,6 @@ hermes-soul-governance/
 ├── README_CN.md                 # 中文版
 ├── SOUL.md                      # 治理规则（框架核心）
 ├── .gitignore
-├── README_CN.md                 # 中文版
 ├── framework/                   # 可部署模板 — 复制到 ~/.hermes/
 │   ├── README.md                # 目录说明
 │   ├── SOUL.md                  # 与根目录 SOUL.md 相同（含占位符）

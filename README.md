@@ -1,10 +1,70 @@
 <p align="center">
   <br>
   <b>SOUL.md Governance Framework</b><br>
-  <i>Addressing fundamental limitations in Hermes Agent's memory and skill systems through a structured governance layer.</i>
+  <i>Replacing Hermes Agent's fragile memory compression cycle with an immutable governance layer.</i>
 </p>
 
-<br>
+<p align="center">
+  <a href="https://github.com/jangyuxue/hermes-soul-governance/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+  <a href="#"><img src="https://img.shields.io/badge/python-3.8%2B-blue" alt="Python 3.8+"></a>
+  <a href="#"><img src="https://img.shields.io/badge/tests-11%20passing-brightgreen" alt="Tests Passing"></a>
+  <a href="https://github.com/jangyuxue/hermes-soul-governance/stargazers"><img src="https://img.shields.io/github/stars/jangyuxue/hermes-soul-governance?style=social" alt="Stars"></a>
+</p>
+
+```mermaid
+flowchart TD
+    subgraph Native["⚡ Hermes Native Memory"]
+        direction TB
+        A1[Agent issues memory() call] --> B1[MEMORY.md / USER.md]
+        B1 --> C1{Chars exceeded?\n2200 / 1375}
+        C1 -->|Yes| D1[Auto-compression:\nmerge entries, discard context]
+        D1 --> E1[Context degraded.\nRules overwritten.\nData lost.]
+        E1 -.-> B1
+        C1 -->|No| F1[Appended.\nNo category.\nNo priority.]
+    end
+
+    subgraph Soul["🛡️ SOUL.md Governance"]
+        direction TB
+        A2[Agent issues write_file call] --> B2{Read-before-write\ncheck}
+        B2 -->|File exists| C2[Read full content →\nmerge old + new]
+        B2 -->|File missing| D2[Write directly]
+        C2 --> E2[Write to categorized file]
+        D2 --> E2
+        E2 --> F2[Post-write verification:\nread_file confirms integrity]
+        F2 --> G2[✅ Data preserved.\nCategorized.\nAudited.]
+    end
+
+    Native -->|"Problem: data degrades over time"| Soul
+```
+
+> **Hermes Agent's native `MEMORY.md` has a 2200-character limit and auto-compression loop that silently discards context.**
+> SOUL.md replaces it with a **read-only governance anchor** + **structured file persistence** — no compression, no data loss.
+
+## 30-Second Quick Start
+
+```bash
+# 1. Deploy the framework template to your Hermes installation
+cp -r framework/* ~/.hermes/
+
+# 2. Configure your role and language
+vim ~/.hermes/SOUL.md
+#    → Section 1: Replace <YOUR_ROLE> and <YOUR_LANGUAGE>
+
+# 3. Disable Hermes native memory system
+hermes config set memory.memory_enabled false
+hermes config set memory.user_profile_enabled false
+
+# 4. Run maintenance script to sync skill registry
+~/.hermes/hermes-agent/venv/bin/python \
+  ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
+
+# 5. Verify
+~/.hermes/hermes-agent/venv/bin/python \
+  ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
+# Expected: "No changes" — everything is in sync
+```
+
+[Full deployment guide →](#quick-start)
 
 ---
 
