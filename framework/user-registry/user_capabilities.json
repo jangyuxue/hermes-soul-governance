@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "description": "User custom capabilities registry",
+  "capabilities": [
+    {
+      "id": "example-skill",
+      "name": "Example Skill",
+      "category": "user-created",
+      "triggers": ["trigger word 1", "trigger word 2"],
+      "description": "Description of what this skill does",
+      "script": "~/.hermes/skills/user-created/example-skill/scripts/run.py",
+      "dependencies": ["REQUIRED_API_KEY"],
+      "input": {
+        "param1": "Description of parameter 1",
+        "param2": "Description of parameter 2"
+      },
+      "output": {
+        "folder": "~/.hermes/output/<skill-name>/",
+        "files": ["result.json"]
+      },
+      "examples": [
+        "Example usage sentence 1",
+        "Example usage sentence 2"
+      ]
+    }
+  ]
+}

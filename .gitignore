@@ -14,8 +14,8 @@ sessions/
 logs/
 backup/
 memories/
-user-memory/
-user-registry/
+/user-memory/
+/user-registry/
 
 # Auto-generated skills (contain session-specific content)
 skills/auto-generated/*/
