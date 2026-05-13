@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/jangyuxue/hermes-soul-governance/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <a href="#"><img src="https://img.shields.io/badge/python-3.8%2B-blue" alt="Python 3.8+"></a>
-  <a href="#"><img src="https://img.shields.io/badge/tests-8%20passing-brightgreen" alt="Tests Passing"></a>
+  <a href="#"><img src="https://img.shields.io/badge/tests-9%20passing-brightgreen" alt="Tests Passing"></a>
   <a href="https://github.com/jangyuxue/hermes-soul-governance/stargazers"><img src="https://img.shields.io/github/stars/jangyuxue/hermes-soul-governance?style=social" alt="Stars"></a>
 </p>
 
@@ -17,8 +17,6 @@
 
 > **Hermes Agent 原生的 `MEMORY.md` 仅有 2200 字符上限，自动压缩循环会静默丢弃上下文。**
 > SOUL.md 用**只读治理锚点** + **结构化文件持久化**替代它——无压缩，无数据丢失。
-
-> **v1.1.0 — 技能维护大升级** — Orphan 归位迁移、描述自动同步、合并检测、自举能力。 [查看更新日志 →](#v110-技能维护大升级)
 
 ## 30 秒快速上手
 
@@ -209,12 +207,14 @@ memory:
 | 自动生成 | `auto-generated/` | Agent（复杂任务后） | `maintain.py` + agent |
 | 用户创建 | `user-created/` | 用户 | `maintain.py`（仅注册表） |
 
-维护脚本（`maintain.py`）位于 `~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py`：
-- 扫描两个目录
-- 自动注册新技能到 `user_capabilities.json`
-- 自动注销已删除的技能
-- 修复格式异常的 `SKILL.md`（补全 frontmatter、name、description）
-- 校验触发词（空触发词 = 技能不可达）
+维护脚本（`maintain.py`）位于 `~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py`，按顺序执行四个阶段：
+
+| 阶段 | 功能 |
+|------|------|
+| [Orphan] | 扫描分类目录，将非 bundled 技能迁移到 `auto-generated/`，一次性完成注册和 manifest 记录 |
+| [Sync] | 对比 `auto-generated/` 目录与 manifest：检测新增/删除/恢复的技能，自动将 SKILL.md 的 `description` 变更同步到 manifest 和注册表 |
+| [Reg] | 检查 `user-created/` 注册表一致性——添加缺失条目，移除已删除的。不修改技能内容 |
+| [Check] | 校验注册表条目（空触发词、路径失效）、自动修复异常的 SKILL.md（仅 auto-generated）、通过 5 轴评分（名称、内容关键词、章节结构、交叉引用、文件结构）检测合并候选，配有三层防误报门控 |
 
 #### 第 8 节：合规与审计
 
@@ -303,7 +303,9 @@ hermes-soul-governance/
 ├── README.md                    # 本文档（英文版）
 ├── README_CN.md                 # 中文版
 ├── SOUL.md                      # 治理规则（框架核心）
-├── RELEASE_NOTE_v1.0.0.md       # 发行说明
+├── RELEASE_NOTE_v1.0.0.md       # v1.0.0 发行说明
+├── RELEASE_NOTE_v1.1.0.md       # v1.1.0 发行说明
+├── RELEASE_NOTE_v2.0.0.md       # v2.0.0 发行说明
 ├── CONTRIBUTING.md              # 贡献指南
 ├── .gitignore
 ├── docs/
@@ -336,7 +338,6 @@ hermes-soul-governance/
 │   │           ├── SKILL.md
 │   │           ├── scripts/
 │   │           │   └── maintain.py    # 自动注册/校验/清理技能
-│   │           └── test_maintain.py   # 11 个测试用例
 │   └── output/                  # 输出目录
 │       ├── README.md
 │       ├── images/
@@ -350,69 +351,13 @@ hermes-soul-governance/
 
 ---
 
-## 测试
-
-部署到 `~/.hermes/` 后：
-
-```bash
-~/.hermes/hermes-agent/venv/bin/python \
-  ~/.hermes/skills/user-created/skill-maintenance/test_maintain.py
-```
-
-11 个测试用例：空目录、新技能检测、SKILL.md 自动修复、注册表同步、删除注销、幂等性、清单一致性、混合类型、校验警告、清空状态。全部通过。
-
-**部署前**（在仓库根目录下运行）：
-```bash
-python3 framework/skills/user-created/skill-maintenance/test_maintain.py
-```
-
----
-
 ## 已知限制
 
 1. **规则执行** — SOUL.md 能确保规则加载到系统提示词中，但模型是否遵守取决于其指令遵循能力。这是基于 LLM 的系统的固有属性。
 
-2. **技能分类** — 维护脚本使用启发式标准（session 引用文件、引用数量、文件大小）判断技能类型。当前规则与现有模式匹配，但 agent 行为变化时可能需要调整。
+2. **合并检测为启发式** — 5 轴评分能识别内容重叠，但不理解语义。可能存在误报，合并前务必人工审核。三层门控（零内容跳过、Jaccard < 0.15 跳过、< 2 轴跳过）能排除大部分偶然匹配，但无法保证零错误。
 
----
-
-## 更新日志
-
-### v1.1.0 — 技能维护大升级 (2026-05-13)
-
-**新增功能**
-
-| 功能 | 说明 |
-|------|------|
-| [Orphan] 归位迁移 | 扫描所有分类目录，非 bundled 技能自动搬到 `auto-generated/` |
-| [Orphan] 一次性注册 | 搬目录同时写入 `user_capabilities.json`，无需等待 [Sync] |
-| [Orphan] manifest 字段同步 | 对比 description/status/registered，过时自动更新 |
-| [Orphan] 双重 bundled 判断 | 目录名 + SKILL.md frontmatter name，防误判 |
-| [Sync] 描述自动同步 | SKILL.md 描述变化 → manifest + registry 自动更新 |
-| [Check] 合并检测 | 两两对比 active 技能，name + topic 重叠 ≥ 0.3 报候选 |
-| 自举能力 | 缺 registry 创建、缺目录创建、从不 exit |
-| 输出通知 | 创建目录时打印告知用户 |
-
-**删除的死代码**
-
-~112 行：`classify_unknown_skill` + 5 个辅助函数、未调用的 `detect_merge_candidates`、返回值无用的 `get_skill_author`、从未写入的 `ROLLBACK_LOG`。
-
-**修复的问题**
-
-- 执行顺序：[Orphan] → [Sync] → [Reg] → [Check]（原来是 A→B→E→C 跳跃）
-- 标签规范：[Orphan]/[Sync]/[Reg]/[Check]（原来是跳字母）
-- 快照补全：补上缺失的 `misplaced_changes`
-- SKILL.md 修复范围：仅 auto-generated/（之前误修了 user-created/）
-- 注释语言：全英文（原中英混杂）
-- 行数：731 行（20 个函数），代码结构清理
-
-**仍需人工**
-
-1. 合并检测只报不修——语义理解脚本做不了
-2. triggers 为空是设计使然——只有你知道触发词
-3. script 路径需手动配置
-4. skill_manage delete → 下一轮 [Sync] 才清注册表（批量工具合理延迟）
-5. `~/.hermes/skills/` 根目录需在首次运行前存在
+3. **技能分类** — 维护脚本使用启发式标准（session 引用文件、引用数量、文件大小）判断技能类型。当前规则与现有模式匹配，但 agent 行为变化时可能需要调整。
 
 ---
 

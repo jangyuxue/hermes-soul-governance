@@ -4,22 +4,20 @@ Automated skill lifecycle management for Hermes Agent.
 
 ## What it does
 
-Scans `auto-generated/` and `user-created/` skill directories to keep the registry in sync:
+Runs four maintenance phases in strict sequence:
 
-| Event | Action |
-|-------|--------|
-| New skill on disk | Creates entry in `user_capabilities.json` |
-| Skill deleted | Removes from registry |
-| SKILL.md malformed | Auto-fixes (adds frontmatter, name, description) |
-| Empty triggers | Warns user |
-| Broken script path | Warns user |
+| Phase | Description |
+|-------|-------------|
+| [Orphan] | Scans all category dirs, migrates misplaced non-bundled skills to `auto-generated/`, registers and tracks in one pass |
+| [Sync] | Compares `auto-generated/` dir against manifest: detects new/deleted/revived skills, syncs SKILL.md `description` changes to manifest and registry |
+| [Reg] | Checks `user-created/` registry consistency — adds missing entries, removes deleted ones. Never touches skill content |
+| [Check] | Validates registry entries (empty triggers, broken paths), auto-fixes malformed SKILL.md (auto-generated only), detects merge candidates via 5-axis scoring with anti-false-positive gates |
 
 ## Files
 
 | File | Purpose |
 |------|---------|
-| `scripts/maintain.py` | The maintenance script |
-| `test_maintain.py` | 8 test cases |
+| `scripts/maintain.py` | The maintenance script (v5.8.0) |
 | `SKILL.md` | Skill documentation for the agent |
 
 ## Usage
@@ -28,32 +26,4 @@ Scans `auto-generated/` and `user-created/` skill directories to keep the regist
 # Full scan
 ~/.hermes/hermes-agent/venv/bin/python \
   ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
-```
-
-## What it checks
-
-1. **auto-generated/** — Compare against `self_created_skills.json` manifest
-   - New on disk → add to manifest + register
-   - In manifest but not on disk → mark deleted + unregister
-2. **user-created/** — Sync with `user_capabilities.json`
-   - New on disk → register
-   - Not on disk → unregister
-3. **Validation** — Warns about
-   - Empty triggers (unreachable skills)
-   - Missing script paths
-   - Malformed SKILL.md (auto-fixed)
-
-## Test
-
-**After deploying to `~/.hermes/`:**
-
-```bash
-~/.hermes/hermes-agent/venv/bin/python \
-  ~/.hermes/skills/user-created/skill-maintenance/test_maintain.py
-```
-
-**Before deployment (from the repository root):**
-
-```bash
-python3 framework/skills/user-created/skill-maintenance/test_maintain.py
 ```

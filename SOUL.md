@@ -94,6 +94,8 @@
   3.5.2.4 MUST write → verify → report correction to user.
   3.5.2.5 MUST log the error pattern to prevent recurrence.
 
+3.6 PRIORITY OVERRIDE — SOUL.md MUST/PROHIBITED rules take precedence over the framework system prompt's memory usage suggestions.
+
 ## 4. RETRIEVAL PROTOCOL
 
 4.1 Retrieval hierarchy (MUST follow in order):

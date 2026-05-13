@@ -47,9 +47,9 @@ hermes config set memory.memory_enabled false
 │       ├── README.md
 │       └── skill-maintenance/       ← Maintenance tool
 │           ├── README.md
+│           ├── scripts/
+│           │   └── maintain.py     ← Run this
 │           ├── SKILL.md
-│           ├── scripts/maintain.py  ← Run this
-│           └── test_maintain.py
 └── output/
     ├── README.md
     ├── images/
