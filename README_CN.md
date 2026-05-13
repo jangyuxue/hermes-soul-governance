@@ -21,21 +21,25 @@
 ## 30 秒快速上手
 
 ```bash
-# 部署核心组件（先阅读各目录说明）
+# 0. 首先获取框架文件
+git clone https://github.com/jangyuxue/hermes-soul-governance.git
+cd hermes-soul-governance
+
+# 1. 部署核心组件到 ~/.hermes/
 cp framework/SOUL.md ~/.hermes/SOUL.md
 cp -r framework/user-memory ~/.hermes/
 cp -r framework/user-registry ~/.hermes/
 cp -r framework/skills/user-created ~/.hermes/skills/
 
-# 配置你的角色和语言
+# 2. 配置你的角色和语言
 vim ~/.hermes/SOUL.md
 #    → 第 1 节：替换 <YOUR_ROLE> 和 <YOUR_LANGUAGE>
 
-# 关闭 Hermes 原生记忆系统
+# 3. 关闭 Hermes 原生记忆系统
 hermes config set memory.memory_enabled false
 hermes config set memory.user_profile_enabled false
 
-# 运行维护脚本，同步技能注册表
+# 4. 运行维护脚本，同步技能注册表
 ~/.hermes/hermes-agent/venv/bin/python \
   ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
 ```
@@ -223,57 +227,66 @@ memory:
 
 ```bash
 # ============================================
-# 部署 SOUL.md 治理框架
+# 第 0 步：获取框架
+# ============================================
+# 将仓库下载到你的电脑
+git clone https://github.com/jangyuxue/hermes-soul-governance.git
+
+# 进入项目目录
+cd hermes-soul-governance
+
+# ============================================
+# 第 1 步：部署到 ~/.hermes/
 # ============================================
 # 前置条件：Hermes Agent 必须已安装在 ~/.hermes/
 
-# 1. 部署 SOUL.md（治理锚点 - 替换默认的 SOUL.md）
+# 1a. 部署 SOUL.md（治理锚点 - 替换默认的 SOUL.md）
 cp framework/SOUL.md ~/.hermes/SOUL.md
 
-# 2. 部署 user-memory/（分类记忆文件）
-#    创建：preferences.md, user-profile.md, environment-setup.md, workflows/
-#    阅读：cat ~/.hermes/user-memory/README.md
+# 1b. 部署 user-memory/（分类记忆文件）
+#     创建：preferences.md, user-profile.md, environment-setup.md, workflows/
+#     阅读：cat ~/.hermes/user-memory/README.md
 cp -r framework/user-memory ~/.hermes/
 
-# 3. 部署 user-registry/（技能发现系统）
-#    创建：capability_finder.py, user_capabilities.json
-#    阅读：cat ~/.hermes/user-registry/README.md
+# 1c. 部署 user-registry/（技能发现系统）
+#     创建：capability_finder.py, user_capabilities.json
+#     阅读：cat ~/.hermes/user-registry/README.md
 cp -r framework/user-registry ~/.hermes/
 
-# 4. 合并 skills/ - 只部署 user-created/ 部分
-#    重要：不会覆盖 auto-generated/，你已有的技能不受影响
-#    阅读：cat ~/.hermes/skills/user-created/skill-maintenance/README.md
+# 1d. 合并 skills/ - 只部署 user-created/ 部分
+#     重要：不会覆盖 auto-generated/，你已有的技能不受影响
+#     阅读：cat ~/.hermes/skills/user-created/skill-maintenance/README.md
 cp -r framework/skills/user-created ~/.hermes/skills/
 
-# 5. 创建 output/ 目录（agent 文件输出位置）
+# 1e. 创建 output/ 目录（agent 文件输出位置）
 mkdir -p ~/.hermes/output/{images,documents,data,temp}
 
 # ============================================
-# 部署后配置
+# 第 2 步：部署后配置
 # ============================================
 
-# 6. 编辑 SOUL.md — 替换第 1 节的占位符
+# 2a. 编辑 SOUL.md — 替换第 1 节的占位符
 vim ~/.hermes/SOUL.md
 #    1.1 Role: <YOUR_ROLE>       → "后端工程师"
 #    1.2 Language: <YOUR_LANGUAGE> → "中文"
 
-# 7. 关闭 Hermes 默认记忆系统
-#    MEMORY.md 和 USER.md 保留在磁盘上（不影响），但不再使用
+# 2b. 关闭 Hermes 默认记忆系统
+#     MEMORY.md 和 USER.md 保留在磁盘上（不影响），但不再使用
 hermes config set memory.memory_enabled false
 hermes config set memory.user_profile_enabled false
 #
-#    如果 hermes CLI 不可用，直接编辑 config.yaml：
-#    vim ~/.hermes/config.yaml
-#    添加：
-#      memory:
-#        memory_enabled: false
-#        user_profile_enabled: false
+#     如果 hermes CLI 不可用，直接编辑 config.yaml：
+#     vim ~/.hermes/config.yaml
+#     添加：
+#       memory:
+#         memory_enabled: false
+#         user_profile_enabled: false
 
-# 8. 运行维护脚本，注册所有技能
+# 2c. 运行维护脚本，注册所有技能
 ~/.hermes/hermes-agent/venv/bin/python \
   ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
 
-# 9. 验证一切同步
+# 2d. 验证一切同步
 ~/.hermes/hermes-agent/venv/bin/python \
   ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
 # 预期输出："No changes" — 所有技能已注册并同步

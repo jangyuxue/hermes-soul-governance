@@ -21,21 +21,25 @@
 ## 30-Second Quick Start
 
 ```bash
-# Deploy core components (read directory descriptions first!)
+# 0. Get the framework files
+git clone https://github.com/jangyuxue/hermes-soul-governance.git
+cd hermes-soul-governance
+
+# 1. Deploy core components to ~/.hermes/
 cp framework/SOUL.md ~/.hermes/SOUL.md
 cp -r framework/user-memory ~/.hermes/
 cp -r framework/user-registry ~/.hermes/
 cp -r framework/skills/user-created ~/.hermes/skills/
 
-# Configure your role and language
+# 2. Configure your role and language
 vim ~/.hermes/SOUL.md
 #    → Section 1: Replace <YOUR_ROLE> and <YOUR_LANGUAGE>
 
-# Disable Hermes native memory system
+# 3. Disable Hermes native memory system
 hermes config set memory.memory_enabled false
 hermes config set memory.user_profile_enabled false
 
-# Run maintenance script to sync skill registry
+# 4. Run maintenance script to sync skill registry
 ~/.hermes/hermes-agent/venv/bin/python \
   ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
 ```
@@ -231,57 +235,66 @@ Enforcement rules:
 
 ```bash
 # ============================================
-# DEPLOY SOUL.md GOVERNANCE FRAMEWORK
+# STEP 0: GET THE FRAMEWORK
 # ============================================
-# Prerequisite: Hermes Agent must be installed at ~/.hermes/
+# Download the repository to your machine
+git clone https://github.com/jangyuxue/hermes-soul-governance.git
 
-# 1. Deploy SOUL.md (the governance anchor - replaces default)
+# Enter the project directory
+cd hermes-soul-governance
+
+# ============================================
+# STEP 1: DEPLOY TO ~/.hermes/
+# ============================================
+# Prerequisite: Hermes Agent must already be installed at ~/.hermes/
+
+# 1a. Deploy SOUL.md (the governance anchor - replaces default)
 cp framework/SOUL.md ~/.hermes/SOUL.md
 
-# 2. Deploy user-memory/ (categorized persistence files)
-#    Creates: preferences.md, user-profile.md, environment-setup.md, workflows/
-#    Read: cat ~/.hermes/user-memory/README.md
+# 1b. Deploy user-memory/ (categorized memory files)
+#     Creates: preferences.md, user-profile.md, environment-setup.md, workflows/
+#     Read: cat ~/.hermes/user-memory/README.md
 cp -r framework/user-memory ~/.hermes/
 
-# 3. Deploy user-registry/ (capability discovery)
-#    Creates: capability_finder.py, user_capabilities.json
-#    Read: cat ~/.hermes/user-registry/README.md
+# 1c. Deploy user-registry/ (capability discovery system)
+#     Creates: capability_finder.py, user_capabilities.json
+#     Read: cat ~/.hermes/user-registry/README.md
 cp -r framework/user-registry ~/.hermes/
 
-# 4. Merge skills/ - only user-created/ content
-#    IMPORTANT: Does NOT touch auto-generated/ (your existing skills safe)
-#    Read: cat ~/.hermes/skills/user-created/skill-maintenance/README.md
+# 1d. Merge skills/ - only user-created/ content
+#     IMPORTANT: Does NOT touch auto-generated/ (your existing skills are safe)
+#     Read: cat ~/.hermes/skills/user-created/skill-maintenance/README.md
 cp -r framework/skills/user-created ~/.hermes/skills/
 
-# 5. Create output/ directories (agent file output locations)
+# 1e. Create output/ directories (agent file output locations)
 mkdir -p ~/.hermes/output/{images,documents,data,temp}
 
 # ============================================
-# POST-DEPLOY CONFIGURATION
+# STEP 2: POST-DEPLOY CONFIGURATION
 # ============================================
 
-# 6. Edit SOUL.md — replace placeholders in Section 1
+# 2a. Edit SOUL.md — replace placeholders in Section 1
 vim ~/.hermes/SOUL.md
 #    1.1 Role: <YOUR_ROLE>       → "Backend Engineer"
 #    1.2 Language: <YOUR_LANGUAGE> → "English"
 
-# 7. Disable Hermes default memory system
-#    MEMORY.md and USER.md remain on disk (harmless) but no longer used
+# 2b. Disable Hermes default memory system
+#     MEMORY.md and USER.md remain on disk (harmless) but are no longer used
 hermes config set memory.memory_enabled false
 hermes config set memory.user_profile_enabled false
 #
-#    If hermes CLI is unavailable, edit config.yaml directly:
-#    vim ~/.hermes/config.yaml
-#    Add:
-#      memory:
-#        memory_enabled: false
-#        user_profile_enabled: false
+#     If hermes CLI is unavailable, edit config.yaml directly:
+#     vim ~/.hermes/config.yaml
+#     Add:
+#       memory:
+#         memory_enabled: false
+#         user_profile_enabled: false
 
-# 8. Run maintenance script to register and sync all skills
+# 2c. Run maintenance script to register and sync all skills
 ~/.hermes/hermes-agent/venv/bin/python \
   ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
 
-# 9. Verify everything is in sync
+# 2d. Verify everything is in sync
 ~/.hermes/hermes-agent/venv/bin/python \
   ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
 # Expected output: "No changes" — all skills registered and synced
