@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1050 540" width="1050" height="540" font-family="Consolas, 'Courier New', monospace">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#8b949e"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#d32f2f"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2e7d32"/>
+    </marker>
+    <marker id="arrow-dash" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#8b949e"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1050" height="540" fill="#0d1117" rx="8"/>
+
+  <!-- Title -->
+  <text x="525" y="32" text-anchor="middle" fill="#e6edf3" font-size="16" font-weight="bold" font-family="Consolas, monospace">Architecture Comparison: Native Memory vs SOUL.md Governance</text>
+
+  <!-- ============================================ -->
+  <!-- LEFT SIDE: Native Memory -->
+  <!-- ============================================ -->
+
+  <!-- Subgraph box -->
+  <rect x="20" y="50" width="460" height="470" rx="10" fill="#1a1212" stroke="#d32f2f" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="250" y="75" text-anchor="middle" fill="#ef9a9a" font-size="13" font-weight="bold">Native Memory (MEMORY.md / USER.md)</text>
+
+  <!-- Node A1: Agent writes -->
+  <rect x="140" y="95" width="220" height="36" rx="18" fill="#d32f2f" stroke="#ef5350" stroke-width="1.5"/>
+  <text x="250" y="118" text-anchor="middle" fill="#fff" font-size="12">Agent writes to memory</text>
+
+  <!-- Arrow: A1 -> B1 -->
+  <line x1="250" y1="131" x2="250" y2="155" stroke="#d32f2f" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+
+  <!-- Node B1: Decision diamond -->
+  <polygon points="250,155 370,195 250,235 130,195" fill="#3b2e1a" stroke="#f57f17" stroke-width="1.5"/>
+  <text x="250" y="191" text-anchor="middle" fill="#ffe0b2" font-size="10">File at character</text>
+  <text x="250" y="203" text-anchor="middle" fill="#ffe0b2" font-size="10">limit? 2200 / 1375</text>
+
+  <!-- Arrow: B1 -> C1 (YES) -->
+  <line x1="370" y1="195" x2="420" y2="195" stroke="#d32f2f" stroke-width="1.5"/>
+  <line x1="420" y1="195" x2="420" y2="280" stroke="#d32f2f" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+  <text x="430" y="192" fill="#ef9a9a" font-size="10">Yes</text>
+
+  <!-- Node C1: Auto-compression -->
+  <rect x="300" y="280" width="240" height="36" rx="4" fill="#d32f2f" stroke="#ef5350" stroke-width="1"/>
+  <text x="420" y="303" text-anchor="middle" fill="#fff" font-size="11">Auto-compression triggered</text>
+
+  <!-- Arrow: C1 -> D1 -->
+  <line x1="420" y1="316" x2="420" y2="340" stroke="#d32f2f" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+
+  <!-- Node D1: Entries merged -->
+  <rect x="310" y="340" width="220" height="36" rx="4" fill="#d32f2f" stroke="#ef5350" stroke-width="1"/>
+  <text x="420" y="356" text-anchor="middle" fill="#fff" font-size="10">Entries merged and</text>
+  <text x="420" y="369" text-anchor="middle" fill="#fff" font-size="10">discarded arbitrarily</text>
+
+  <!-- Arrow: D1 -> E1 -->
+  <line x1="420" y1="376" x2="420" y2="400" stroke="#d32f2f" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+
+  <!-- Node E1: Context degraded -->
+  <rect x="310" y="400" width="220" height="36" rx="18" fill="#b71c1c" stroke="#ef5350" stroke-width="1.5"/>
+  <text x="420" y="423" text-anchor="middle" fill="#ffcdd2" font-size="11" font-weight="bold">Context degraded</text>
+
+  <!-- Dotted arrow: D1 back to B1 (cycle) -->
+  <line x1="310" y1="358" x2="130" y2="210" stroke="#8b949e" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow-dash)"/>
+  <text x="200" y="280" fill="#8b949e" font-size="9" font-style="italic">repeat</text>
+
+  <!-- Node F1: Appended (NO branch) -->
+  <rect x="25" y="265" width="180" height="36" rx="4" fill="#d32f2f" stroke="#ef5350" stroke-width="1"/>
+  <text x="115" y="281" text-anchor="middle" fill="#fff" font-size="10">Appended without</text>
+  <text x="115" y="294" text-anchor="middle" fill="#fff" font-size="10">category or priority</text>
+
+  <!-- Arrow: B1 -> F1 (NO) -->
+  <polyline points="130,195 90,195 90,230 115,250 115,265" fill="none" stroke="#d32f2f" stroke-width="1"/>
+  <text x="85" y="235" fill="#ef9a9a" font-size="10">No</text>
+
+  <!-- Arrow: F1 -> E1 -->
+  <line x1="205" y1="283" x2="310" y2="418" stroke="#d32f2f" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow-red)"/>
+
+  <!-- Badge on left -->
+  <rect x="160" y="465" width="180" height="28" rx="14" fill="#b71c1c" stroke="#d32f2f" stroke-width="1"/>
+  <text x="250" y="484" text-anchor="middle" fill="#ffcdd2" font-size="11" font-weight="bold">Data loss loop</text>
+
+  <!-- ============================================ -->
+  <!-- MIDDLE: Arrow connecting sides -->
+  <!-- ============================================ -->
+  <line x1="480" y1="285" x2="520" y2="285" stroke="#8b949e" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ============================================ -->
+  <!-- RIGHT SIDE: SOUL.md Governance -->
+  <!-- ============================================ -->
+
+  <!-- Subgraph box -->
+  <rect x="530" y="50" width="500" height="470" rx="10" fill="#0a1f0a" stroke="#2e7d32" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="780" y="75" text-anchor="middle" fill="#a5d6a7" font-size="13" font-weight="bold">SOUL.md Governance</text>
+
+  <!-- Node P1 -->
+  <rect x="650" y="95" width="240" height="36" rx="18" fill="#2e7d32" stroke="#66bb6a" stroke-width="1.5"/>
+  <text x="770" y="118" text-anchor="middle" fill="#fff" font-size="12">Agent writes data</text>
+
+  <!-- Arrow P1 -> P2 -->
+  <line x1="770" y1="131" x2="770" y2="155" stroke="#2e7d32" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+  <!-- Node P2: Decision -->
+  <polygon points="770,155 890,190 770,225 650,190" fill="#1a2e0a" stroke="#66bb6a" stroke-width="1.5"/>
+  <text x="770" y="186" text-anchor="middle" fill="#c8e6c9" font-size="10">Read-before-write</text>
+  <text x="770" y="198" text-anchor="middle" fill="#c8e6c9" font-size="10">enforced</text>
+
+  <!-- Arrow P2 -> P3 (File exists) -->
+  <line x1="890" y1="190" x2="930" y2="190" stroke="#2e7d32" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <text x="910" y="183" fill="#a5d6a7" font-size="9">File exists</text>
+
+  <!-- Node P3: Read full content -->
+  <rect x="880" y="170" width="130" height="40" rx="4" fill="#2e7d32" stroke="#66bb6a" stroke-width="1"/>
+  <text x="945" y="186" text-anchor="middle" fill="#fff" font-size="10">Read full content</text>
+
+  <!-- Arrow P3 -> P4 -->
+  <line x1="945" y1="210" x2="945" y2="240" stroke="#2e7d32" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+  <!-- Node P4: Merge old + new -->
+  <rect x="890" y="240" width="110" height="36" rx="4" fill="#2e7d32" stroke="#66bb6a" stroke-width="1"/>
+  <text x="945" y="263" text-anchor="middle" fill="#fff" font-size="10">Merge old + new</text>
+
+  <!-- Arrow P4 -> P6 -->
+  <line x1="890" y1="258" x2="835" y2="310" stroke="#2e7d32" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+  <!-- Arrow P2 -> P5 (New entry) -->
+  <polyline points="650,190 610,190 610,230 640,258 670,310" fill="none" stroke="#2e7d32" stroke-width="1"/>
+  <text x="600" y="225" fill="#a5d6a7" font-size="9">New entry</text>
+
+  <!-- Node P5: Write directly -->
+  <rect x="560" y="310" width="110" height="36" rx="4" fill="#2e7d32" stroke="#66bb6a" stroke-width="1"/>
+  <text x="615" y="333" text-anchor="middle" fill="#fff" font-size="10">Write directly</text>
+
+  <!-- Arrow P5 -> P6 -->
+  <line x1="670" y1="328" x2="720" y2="328" stroke="#2e7d32" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+  <!-- Node P6: Categorized file (large) -->
+  <rect x="670" y="295" width="200" height="66" rx="4" fill="#1b5e20" stroke="#66bb6a" stroke-width="1.5"/>
+  <text x="770" y="315" text-anchor="middle" fill="#c8e6c9" font-size="10" font-weight="bold">Write to categorized file</text>
+  <text x="770" y="330" text-anchor="middle" fill="#a5d6a7" font-size="10">preferences.md</text>
+  <text x="770" y="345" text-anchor="middle" fill="#a5d6a7" font-size="10">user-profile.md / environment-setup.md</text>
+  <text x="770" y="358" text-anchor="middle" fill="#a5d6a7" font-size="10">workflows/</text>
+
+  <!-- Arrow P6 -> P7 -->
+  <line x1="770" y1="361" x2="770" y2="390" stroke="#2e7d32" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+  <!-- Node P7: Verification -->
+  <rect x="660" y="390" width="220" height="36" rx="18" fill="#1b5e20" stroke="#66bb6a" stroke-width="1.5"/>
+  <text x="770" y="413" text-anchor="middle" fill="#c8e6c9" font-size="11" font-weight="bold">Post-write verification</text>
+
+  <!-- Success badge -->
+  <rect x="690" y="455" width="180" height="28" rx="14" fill="#0a3b0a" stroke="#2e7d32" stroke-width="1"/>
+  <text x="780" y="474" text-anchor="middle" fill="#81c784" font-size="11" font-weight="bold">Preserved · Categorized · Audited</text>
+</svg>
