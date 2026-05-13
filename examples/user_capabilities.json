@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "description": "User custom capabilities registry",
+  "capabilities": [
+    {
+      "id": "example-skill",
+      "name": "Example Skill",
+      "category": "auto-generated",
+      "triggers": ["example", "test"],
+      "description": "Example skill registry entry",
+      "script": null,
+      "dependencies": [],
+      "examples": []
+    }
+  ]
+}

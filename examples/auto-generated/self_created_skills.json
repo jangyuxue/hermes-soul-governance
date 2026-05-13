@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-05-13",
+  "description": "Auto-generated skills manifest — used by maintenance script for comparison",
+  "self_created_skills": [
+    {
+      "name": "example-skill",
+      "type": "auto-generated",
+      "description": "Example auto-generated skill",
+      "status": "active",
+      "category": "auto-generated",
+      "registered": true,
+      "note": "First detected: 2026-05-13"
+    }
+  ],
+  "builtin_skills": []
+}
