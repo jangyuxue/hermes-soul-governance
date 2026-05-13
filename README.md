@@ -12,29 +12,25 @@
 </p>
 
 ```mermaid
-flowchart TD
-    subgraph Native["⚡ Hermes Native Memory"]
-        direction TB
-        A1[Agent issues memory() call] --> B1[MEMORY.md / USER.md]
-        B1 --> C1{Chars exceeded?\n2200 / 1375}
-        C1 -->|Yes| D1[Auto-compression:\nmerge entries, discard context]
-        D1 --> E1[Context degraded.\nRules overwritten.\nData lost.]
-        E1 -.-> B1
-        C1 -->|No| F1[Appended.\nNo category.\nNo priority.]
+flowchart LR
+    subgraph Native["Native Memory (MEMORY.md / USER.md)"]
+        A1[Agent writes] --> B1{Size limit?}
+        B1 -->|Yes| C1[Auto-compress: discard data]
+        C1 --> D1[Context lost]
+        D1 -.-> A1
+        B1 -->|No| E1[Appended, no category]
     end
 
-    subgraph Soul["🛡️ SOUL.md Governance"]
-        direction TB
-        A2[Agent issues write_file call] --> B2{Read-before-write\ncheck}
-        B2 -->|File exists| C2[Read full content →\nmerge old + new]
-        B2 -->|File missing| D2[Write directly]
-        C2 --> E2[Write to categorized file]
+    subgraph Soul["SOUL.md Governance"]
+        A2[Agent writes] --> B2{Read first?}
+        B2 -->|Yes| C2[Merge old + new]
+        B2 -->|No| D2[Write directly]
+        C2 --> E2[Categorized file]
         D2 --> E2
-        E2 --> F2[Post-write verification:\nread_file confirms integrity]
-        F2 --> G2[✅ Data preserved.\nCategorized.\nAudited.]
+        E2 --> F2[Verify integrity]
     end
 
-    Native -->|"Problem: data degrades over time"| Soul
+    Native -->|"Problem"| Soul
 ```
 
 > **Hermes Agent's native `MEMORY.md` has a 2200-character limit and auto-compression loop that silently discards context.**
