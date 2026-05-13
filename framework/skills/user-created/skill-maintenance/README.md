@@ -45,6 +45,15 @@ Scans `auto-generated/` and `user-created/` skill directories to keep the regist
 
 ## Test
 
+**After deploying to `~/.hermes/`:**
+
 ```bash
-python3 test_maintain.py
+~/.hermes/hermes-agent/venv/bin/python \
+  ~/.hermes/skills/user-created/skill-maintenance/test_maintain.py
+```
+
+**Before deployment (from the repository root):**
+
+```bash
+python3 framework/skills/user-created/skill-maintenance/test_maintain.py
 ```
