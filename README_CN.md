@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/jangyuxue/hermes-soul-governance/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <a href="#"><img src="https://img.shields.io/badge/python-3.8%2B-blue" alt="Python 3.8+"></a>
-  <a href="#"><img src="https://img.shields.io/badge/tests-9%20passing-brightgreen" alt="Tests Passing"></a>
+  <a href="#"><img src="https://img.shields.io/badge/tests-local%20only-lightgrey" alt="Tests: Local Only"></a>
   <a href="https://github.com/jangyuxue/hermes-soul-governance/stargazers"><img src="https://img.shields.io/github/stars/jangyuxue/hermes-soul-governance?style=social" alt="Stars"></a>
 </p>
 
@@ -137,11 +137,13 @@ memory:
 定义 agent 的人设。**部署后必须编辑这一节**：
 
 ```markdown
-1.1 Role: <YOUR_ROLE>
-# 示例："后端工程师", "数据分析师"
+1.1 Role: <YOUR_ROLE> — thinking partner (fact-based, detailed, no hollow confirms).
+  NOT a search engine or command executor.
+  # 示例："后端工程师", "数据分析师", "产品经理"
 
-1.2 Language: <YOUR_LANGUAGE>
-# 示例："中文", "English"
+1.2 Language: ALWAYS respond in <YOUR_LANGUAGE>. Applies to ALL responses: explanations, code comments, questions.
+  Exception: user explicitly writes in another language.
+  # 示例："中文", "English", "Japanese"
 ```
 
 #### 第 2 节：响应标准
@@ -166,7 +168,6 @@ memory:
 "我是...", "我叫..."             → user-memory/user-profile.md
 "我系统是...", "我用了..."        → user-memory/environment-setup.md
 "我做XX的步骤..."                 → user-memory/workflows/<name>.md
-"加一个技能", "注册"             → user-registry/user_capabilities.json
 ```
 
 这替代了默认记忆系统，使用结构化、分类化的文件存储。
@@ -182,7 +183,7 @@ memory:
 
 文件操作规则：
 - **5.1**：修改前备份（到 `user-memory/.backup/`）
-- **5.3**：受保护目录（禁止删除 `skills/`、`output/`、`memories/` 下的文件）
+- **5.3**：受保护目录（禁止删除 `skills/`、`output/`、`memories/`、`skills/*/.history/` 下的文件）
 - **5.4**：输出路径 `~/.hermes/output/{images|documents|data|temp}/`
 - **5.5**：**重要** — 所有 Python 操作必须使用 `~/.hermes/hermes-agent/venv/bin/python`，不能使用系统 `python3`。此 venv 包含所需的依赖包。部分发行版的系统 Python 是外部管理的，直接使用会失败。
 
@@ -207,7 +208,7 @@ memory:
 | 自动生成 | `auto-generated/` | Agent（复杂任务后） | `maintain.py` + agent |
 | 用户创建 | `user-created/` | 用户 | `maintain.py`（仅注册表） |
 
-维护脚本（`maintain.py`）位于 `~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py`，按顺序执行四个阶段，然后保存注册表快照：
+维护脚本（`maintain.py`）位于 `~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py`，按顺序执行五个阶段：
 
 | 阶段 | 功能 |
 |------|------|
@@ -296,49 +297,52 @@ hermes config set memory.user_profile_enabled false
 hermes-soul-governance/
 ├── README.md                    # 本文档（英文版）
 ├── README_CN.md                 # 中文版
-├── SOUL.md                      # 治理规则（框架核心）
-├── RELEASE_NOTE_v1.0.0.md       # v1.0.0 发行说明
-├── RELEASE_NOTE_v1.1.0.md       # v1.1.0 发行说明
-├── RELEASE_NOTE_v2.0.0.md       # v2.0.0 发行说明
 ├── CONTRIBUTING.md              # 贡献指南
 ├── .gitignore
 ├── docs/
 │   └── assets/
-│       └── architecture.svg     # 架构对比图
-├── framework/                   # 可部署模板 — 复制到 ~/.hermes/
-│   ├── README.md                # 目录说明
-│   ├── SOUL.md                  # 与根目录 SOUL.md 相同（含占位符）
-│   ├── user-memory/             # 分类记忆存储
-│   │   ├── README.md            # 文件功能与触发词说明
-│   │   ├── preferences.md       # 沟通风格、习惯
-│   │   ├── user-profile.md      # 身份、角色
-│   │   ├── environment-setup.md # 工具链、路径
-│   │   ├── .backup/             # 写入前自动创建
-│   │   └── workflows/
-│   │       ├── README.md
-│   │       └── workflow-commands.json  # 机器可执行指令
-│   ├── user-registry/           # 能力发现系统
-│   │   ├── README.md
-│   │   ├── user_capabilities.json
-│   │   └── capability_finder.py
-│   ├── skills/                  # 技能管理
-│   │   ├── auto-generated/
-│   │   │   └── README.md
-│   │   └── user-created/
-│   │       ├── README.md
-│   │       └── skill-maintenance/
-│   │           ├── README.md
-│   │           ├── SKILL.md
-│   │           ├── scripts/
-│   │           │   └── maintain.py    # 自动注册/校验/清理技能
-│   └── output/                  # 输出目录
-│       ├── README.md
-│       ├── images/
-│       ├── documents/
-│       ├── data/
-│       └── temp/
-└── examples/
-    └── user_capabilities.json    # 示例含 lifecycle 字段
+│       ├── architecture.svg     # 架构对比图
+│       └── render.html          # 交互式架构渲染
+└── framework/                   # 可部署模板 — 所有部署内容
+    ├── README.md                # 部署说明
+    ├── SOUL.md                  # 治理规则（框架核心）
+    ├── RELEASE_NOTE_v1.0.0.md   # v1.0.0 发行说明
+    ├── RELEASE_NOTE_v1.1.0.md   # v1.1.0 发行说明
+    ├── RELEASE_NOTE_v2.0.0.md   # v2.0.0 发行说明
+    ├── RELEASE_NOTE_v3.0.0.md   # v3.0.0 发行说明
+    ├── user-memory/             # 分类记忆存储
+    │   ├── README.md
+    │   ├── preferences.md
+    │   ├── user-profile.md
+    │   ├── environment-setup.md
+    │   ├── .backup/
+    │   └── workflows/
+    │       ├── README.md
+    │       └── workflow-commands.json
+    ├── user-registry/           # 能力发现系统
+    │   ├── README.md
+    │   ├── user_capabilities.json
+    │   └── capability_finder.py
+    ├── skills/                  # 技能管理
+    │   ├── auto-generated/
+    │   │   └── README.md
+    │   └── user-created/
+    │       ├── README.md
+    │       └── skill-maintenance/
+    │           ├── README.md
+    │           ├── SKILL.md
+    │           ├── scripts/
+    │           │   ├── maintain.py    # 自动注册/校验/清理技能
+    │           │   └── test_maintain.py  # 9 个测试用例（本地文件）
+    │           └── .history/          # 注册表快照（自动创建）
+    ├── output/                  # 输出目录
+    │   ├── README.md
+    │   ├── images/
+    │   ├── documents/
+    │   ├── data/
+    │   └── temp/
+    └── examples/
+        └── user_capabilities.json    # 示例含 lifecycle 字段
 ```
 
 ---

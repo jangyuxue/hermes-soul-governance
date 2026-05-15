@@ -316,23 +316,8 @@ All skill data lives in one file. The `lifecycle` field on each capability entry
 | `user_capabilities.json` | `user-registry/` | `capability_finder.py` + maintain.py | Routing table (triggers → skills) + lifecycle tracking (status/note/type) via each entry's `lifecycle` field |
 | `.bundled_manifest` | `skills/` | maintain.py + hermes system | System built-in skill whitelist |
 
-## References
+### Reference Files (local-only)
 
-- `scripts/maintain.py` — The script itself (v6 — unified registry, single registry file)
-- `scripts/test_maintain.py` — 9 test cases (local-only, not in framework)
-- `references/session-2026-05-15-unified-registry.md` — v5→v6 migration: two JSONs merged into one, lifecycle field design, removed files
-- `references/session-2026-05-15-unified-registry.md` — v5→v6 migration: two JSONs merged into one, lifecycle field design, removed files
-- `references/session-2026-05-13-soulmd-enforcement-gap.md` — [Orphan] auto-migration origin
-- `references/session-2026-05-13-migration-run.md` — Live migration (4 skills relocated)
-- `references/session-2026-05-13-code-cleanup.md` — Dead code removal + output labels
-- `references/session-2026-05-13-portability.md` — Self-bootstrapping
-- `references/session-2026-05-13-merge-and-desc-sync.md` — Merge hermes-agent-setup ↔ hermes-wsl-tool-setup + description auto-sync added
-- `references/session-2026-05-13-merge-restore-cleanup.md` — Merge detection restore
-- `references/session-2026-05-13-merge-rigor-enhancement.md` — Jaccard gate + `.split()` fix + false positive calibration
-- `references/session-2026-05-13-skills-as-usage-guides.md` — SKILL.md 写作原则（格式一致、简洁优先、操作纪律）
-- `references/session-2026-05-13-v2.0.0-release.md` — v2.0.0 release session notes
-- `references/test-coverage-bundled-manifest-gap.md` — [Orphan] test coverage gap (BUNDLED_MANIFEST_PATH not mocked)
-- `references/portability-bundled-manifest-gap.md` — [Orphan] portability risk on systems without .bundled_manifest
-- `references/github-release-notes-format.md` — GitHub Release 正文格式（纯 Markdown，禁用 HTML/Mermaid）
-- `references/standalone-project-extraction.md` — Pattern for extracting a focused tool from a larger framework into its own repository. Covers repo-as-skill-directory structure, user_skills/ single-directory model, bootstrap-at-startup, and single self-registration. Derived from the skill-auto-maintain project.
-- `references/open-source-readme-design.md` — README and Release Notes design patterns: Mermaid flowcharts, before/after comparisons, feature cards, language switcher, Release renderer limitations, and common pitfalls.
+The `references/` directory contains local session notes not included in the framework template.
+These files document development history and implementation patterns for agent reference during maintenance.
+They are NOT part of the deployable framework and will not be present in a fresh deployment.

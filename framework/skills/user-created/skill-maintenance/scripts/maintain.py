@@ -657,7 +657,14 @@ def run_global_scan():
 
     # ========== Orphan Detection & Migration ==========
     print("  [Orphan] Misplaced skill check...")
-    misplaced_changes = scan_and_migrate_misplaced(registry)
+    if not os.path.exists(BUNDLED_MANIFEST_PATH):
+        print("    [ERROR] .bundled_manifest not found — cannot identify bundled skills,")
+        print("            skipping orphan check to prevent accidental skill relocation.")
+        print("    Fix: run 'hermes curator sync-manifest' or ask your Hermes provider")
+        print("         to regenerate ~/.hermes/skills/.bundled_manifest")
+        misplaced_changes = []
+    else:
+        misplaced_changes = scan_and_migrate_misplaced(registry)
     if misplaced_changes:
         for c in misplaced_changes:
             print(c)

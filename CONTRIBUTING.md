@@ -75,7 +75,7 @@ cp -r framework/skills/user-created ~/.hermes/skills/
   ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
 ```
 
-No test suite is included — verify the script works by running it and checking its output.
+A local test suite (test_maintain.py, 9 test cases) is provided under scripts/ — not included in the framework template. Run it from the skill-maintenance directory after deployment.
 
 ## Coding Guidelines
 

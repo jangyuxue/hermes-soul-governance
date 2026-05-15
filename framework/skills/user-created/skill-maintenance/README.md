@@ -4,7 +4,7 @@ Automated skill lifecycle management for Hermes Agent.
 
 ## What it does
 
-Runs four maintenance phases in strict sequence, then saves a registry snapshot:
+Runs five maintenance phases in strict sequence:
 
 | Phase | Description |
 |-------|-------------|
@@ -19,4 +19,5 @@ Runs four maintenance phases in strict sequence, then saves a registry snapshot:
 | File | Purpose |
 |------|---------|
 | `scripts/maintain.py` | The maintenance script (v6 — unified registry) |
+| `scripts/test_maintain.py` | 9 test cases (local-only, not in framework template) |
 | `SKILL.md` | Skill documentation |

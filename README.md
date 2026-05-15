@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/jangyuxue/hermes-soul-governance/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <a href="#"><img src="https://img.shields.io/badge/python-3.8%2B-blue" alt="Python 3.8+"></a>
-  <a href="#"><img src="https://img.shields.io/badge/tests-9%20passing-brightgreen" alt="Tests Passing"></a>
+  <a href="#"><img src="https://img.shields.io/badge/tests-local%20only-lightgrey" alt="Tests: Local Only"></a>
   <a href="https://github.com/jangyuxue/hermes-soul-governance/stargazers"><img src="https://img.shields.io/github/stars/jangyuxue/hermes-soul-governance?style=social" alt="Stars"></a>
 </p>
 
@@ -143,11 +143,13 @@ memory:
 Defines the agent's persona. **You must edit this section** after deploying:
 
 ```markdown
-1.1 Role: <YOUR_ROLE>
-# Example: "Backend Engineer", "Data Scientist", "Senior Developer"
+1.1 Role: <YOUR_ROLE> — thinking partner (fact-based, detailed, no hollow confirms).
+  NOT a search engine or command executor.
+  # Example: "Backend Engineer", "Data Scientist", "Product Manager"
 
-1.2 Language: <YOUR_LANGUAGE>
-# Example: "English", "Chinese (中文)"
+1.2 Language: ALWAYS respond in <YOUR_LANGUAGE>. Applies to ALL responses: explanations, code comments, questions.
+  Exception: user explicitly writes in another language.
+  # Example: "English", "Chinese", "Japanese"
 ```
 
 #### Section 2: Response Standards
@@ -189,7 +191,7 @@ Defines how the agent reads your stored information:
 
 Rules for file operations:
 - **5.1**: Backup before modification (to `user-memory/.backup/`)
-- **5.3**: Protected directories (no deletion under `skills/`, `output/`, `memories/`)
+- **5.3**: Protected directories (no deletion under `skills/`, `output/`, `memories/`, `skills/*/.history/`)
 - **5.4**: Output goes to `~/.hermes/output/{images|documents|data|temp}/`
 - **5.5**: **Important** — All Python operations must use `~/.hermes/hermes-agent/venv/bin/python`, not system `python3`. This venv contains the required dependencies (httpx, openai, etc.). System Python is externally managed on some distributions and will fail.
 
@@ -214,7 +216,7 @@ Defines where skills live and how they're maintained:
 | Auto-generated | `auto-generated/` | Agent (after complex tasks) | `maintain.py` + agent |
 | User-created | `user-created/` | User | `maintain.py` (registry only) |
 
-The maintenance script (`maintain.py`) at `~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py` runs four phases in sequence, then saves a registry snapshot:
+The maintenance script (`maintain.py`) at `~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py` runs five phases in sequence:
 
 | Phase | What it does |
 |-------|-------------|
@@ -303,49 +305,52 @@ hermes config set memory.user_profile_enabled false
 hermes-soul-governance/
 ├── README.md                    # This file
 ├── README_CN.md                 # Chinese version
-├── SOUL.md                      # Governance rules (core of the framework)
-├── RELEASE_NOTE_v1.0.0.md       # v1.0.0 release notes
-├── RELEASE_NOTE_v1.1.0.md       # v1.1.0 release notes
-├── RELEASE_NOTE_v2.0.0.md       # v2.0.0 release notes
 ├── CONTRIBUTING.md              # Contribution guide
 ├── .gitignore
 ├── docs/
 │   └── assets/
-│       └── architecture.svg     # Architecture comparison diagram
-├── framework/                   # Deployable template — copy to ~/.hermes/
-│   ├── README.md                # Quick reference for each directory
-│   ├── SOUL.md                  # Same as root SOUL.md (with placeholders)
-│   ├── user-memory/             # Categorized memory storage
-│   │   ├── README.md            # File descriptions and trigger keywords
-│   │   ├── preferences.md       # Communication style, habits
-│   │   ├── user-profile.md      # Identity, role
-│   │   ├── environment-setup.md # Toolchain, paths
-│   │   ├── .backup/             # Auto-created before each write
-│   │   └── workflows/
-│   │       ├── README.md
-│   │       └── workflow-commands.json  # Machine-readable steps
-│   ├── user-registry/           # Capability discovery system
-│   │   ├── README.md
-│   │   ├── user_capabilities.json
-│   │   └── capability_finder.py
-│   ├── skills/                  # Skill management
-│   │   ├── auto-generated/
-│   │   │   └── README.md
-│   │   └── user-created/
-│   │       ├── README.md
-│   │       └── skill-maintenance/
-│   │           ├── README.md
-│   │           ├── SKILL.md
-│   │           ├── scripts/
-│   │           │   └── maintain.py    # Auto-register/validate/clean/merge-detect skills
-│   └── output/                  # Agent output directories
-│       ├── README.md
-│       ├── images/
-│       ├── documents/
-│       ├── data/
-│       └── temp/
-└── examples/
-    └── user_capabilities.json    # Example with lifecycle field
+│       ├── architecture.svg     # Architecture comparison diagram
+│       └── render.html          # Interactive architecture render
+└── framework/                   # Deployable template — all deployable content
+    ├── README.md                # Deployment guide for each directory
+    ├── SOUL.md                  # Governance rules (core of the framework)
+    ├── RELEASE_NOTE_v1.0.0.md   # v1.0.0 release notes
+    ├── RELEASE_NOTE_v1.1.0.md   # v1.1.0 release notes
+    ├── RELEASE_NOTE_v2.0.0.md   # v2.0.0 release notes
+    ├── RELEASE_NOTE_v3.0.0.md   # v3.0.0 release notes
+    ├── user-memory/             # Categorized memory storage
+    │   ├── README.md
+    │   ├── preferences.md
+    │   ├── user-profile.md
+    │   ├── environment-setup.md
+    │   ├── .backup/
+    │   └── workflows/
+    │       ├── README.md
+    │       └── workflow-commands.json
+    ├── user-registry/           # Capability discovery system
+    │   ├── README.md
+    │   ├── user_capabilities.json
+    │   └── capability_finder.py
+    ├── skills/                  # Skill management
+    │   ├── auto-generated/
+    │   │   └── README.md
+    │   └── user-created/
+    │       ├── README.md
+    │       └── skill-maintenance/
+    │           ├── README.md
+    │           ├── SKILL.md
+    │           ├── scripts/
+    │           │   ├── maintain.py    # Auto-register/validate/clean/merge-detect skills
+    │           │   └── test_maintain.py  # 9 test cases (local-only)
+    │           └── .history/          # Registry snapshots (auto-created)
+    ├── output/                  # Agent output directories
+    │   ├── README.md
+    │   ├── images/
+    │   ├── documents/
+    │   ├── data/
+    │   └── temp/
+    └── examples/
+        └── user_capabilities.json    # Example with lifecycle field
 ```
 
 ---
