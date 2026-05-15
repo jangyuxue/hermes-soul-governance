@@ -207,7 +207,7 @@ memory:
 | 自动生成 | `auto-generated/` | Agent（复杂任务后） | `maintain.py` + agent |
 | 用户创建 | `user-created/` | 用户 | `maintain.py`（仅注册表） |
 
-维护脚本（`maintain.py`）位于 `~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py`，按顺序执行四个阶段：
+维护脚本（`maintain.py`）位于 `~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py`，按顺序执行四个阶段，然后保存注册表快照：
 
 | 阶段 | 功能 |
 |------|------|
@@ -215,6 +215,7 @@ memory:
 | [Sync] | 对比 `auto-generated/` 磁盘与注册表 lifecycle 字段：检测新增/删除/恢复的技能，自动将 SKILL.md 的 `description` 变更同步到注册表 |
 | [Reg] | 检查 `user-created/` 注册表一致性——添加缺失条目，移除已删除的。不修改技能内容 |
 | [Check] | 校验注册表条目（空触发词、路径失效）、自动修复异常的 SKILL.md（仅 auto-generated）、通过 5 轴评分（名称、内容关键词、章节结构、交叉引用、文件结构）检测合并候选，配有三层防误报门控 |
+| [Snapshot] | 将 `user_capabilities.json` 保存一份带时间戳的副本到 `.history/`，用于变更审计和回滚参考 |
 
 #### 第 8 节：合规与审计
 

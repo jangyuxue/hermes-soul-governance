@@ -1,6 +1,6 @@
 ---
 name: skill-maintenance
-description: "Automated skill maintenance tool (v6 — Unified Registry). Full scan: [Orphan] migrate misplaced skills from category dirs to auto-generated/, [Sync] auto-generated/ vs registry lifecycle diff (new/deleted/revived + description auto-sync via lifecycle field), [Reg] user-created/ registry consistency (add/remove, no content changes), [Check] validation warnings + multi-dimensional merge detection. All lifecycle tracking merged into user_capabilities.json — single source of truth."
+description: "Automated skill maintenance tool (v6 — Unified Registry + Snapshots). Full scan: [Orphan] migrate misplaced skills from category dirs to auto-generated/, [Sync] auto-generated/ vs registry lifecycle diff (new/deleted/revived + description auto-sync via lifecycle field), [Reg] user-created/ registry consistency (add/remove, no content changes), [Check] validation warnings + multi-dimensional merge detection, [Snapshot] timestamped registry archive to .history/. All lifecycle tracking merged into user_capabilities.json — single source of truth."
 version: 6.0.0
 author: Hermes Agent
 license: MIT
@@ -35,7 +35,7 @@ See main README for per-directory deployment commands.
 skill-maintenance is INCLUDED inside `framework/skills/user-created/skill-maintenance/`.
 No separate install step needed.
 
-## Execution Flow ([Orphan] → [Sync] → [Reg] → [Check])
+## Execution Flow ([Orphan] → [Sync] → [Reg] → [Check] → [Snapshot])
 
 The script runs four parts in strict sequence. [Orphan] MUST run first so newly
 relocated skills are present in `auto-generated/` before [Sync] scans it.
@@ -106,6 +106,17 @@ After all operations, runs checks in order:
    - Higher score + more evidence axes = more reliable recommendation
    - Deleted skills are excluded from merge detection
    - **Always review candidates manually before merging** — the scoring is heuristic
+
+### [Snapshot] Registry Snapshot (Post-Run Archive)
+
+After all four phases complete, saves a timestamped copy of `user_capabilities.json` to `.history/`:
+
+- **Snapshot file**: `.history/snapshot_{YYYYMMDD_HHMMSS}.json`
+- **Purpose**: provides a timeline of registry state changes across runs, useful for rollback reference and change auditing
+- **Created by**: `save_json(snapshot_path, registry)` after the registry write
+
+Output:
+- `Snapshot: ~/.hermes/skills/user-created/skill-maintenance/.history/snapshot_20260515_091410.json`
 
 ## Portability (Self-Bootstrapping)
 

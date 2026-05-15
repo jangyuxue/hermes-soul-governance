@@ -115,7 +115,7 @@
 
 5.2 Deletion permitted ONLY under user-memory/ and user-registry/.
 
-5.3 PROHIBITED deletions: any file under ~/.hermes/skills/, ~/.hermes/output/, ~/.hermes/memories/.
+5.3 PROHIBITED deletions: any file under ~/.hermes/skills/, ~/.hermes/output/, ~/.hermes/memories/, ~/.hermes/skills/*/.history/.
 
 5.4 Agent file output path: ~/.hermes/output/{images|documents|data|temp}/.
 
@@ -147,7 +147,7 @@
   7.3.1 Script: ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
 
   7.3.2 Auto-generated:
-    Script diffs registry lifecycle fields against disk, auto-registers new skills, auto-unregisters deleted skills, detects merge candidates.
+    Script diffs registry lifecycle fields against disk, auto-registers new skills, auto-unregisters deleted skills, detects merge candidates, then saves a timestamped snapshot to .history/.
 
   7.3.3 User-created:
     Script ONLY checks registry — adds if missing on disk, removes if skill dir deleted.

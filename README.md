@@ -215,7 +215,7 @@ Defines where skills live and how they're maintained:
 | Auto-generated | `auto-generated/` | Agent (after complex tasks) | `maintain.py` + agent |
 | User-created | `user-created/` | User | `maintain.py` (registry only) |
 
-The maintenance script (`maintain.py`) at `~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py` runs four phases in sequence:
+The maintenance script (`maintain.py`) at `~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py` runs four phases in sequence, then saves a registry snapshot:
 
 | Phase | What it does |
 |-------|-------------|
@@ -223,6 +223,7 @@ The maintenance script (`maintain.py`) at `~/.hermes/skills/user-created/skill-m
 | [Sync] | Compares `auto-generated/` disk against registry lifecycle fields: detects new/deleted/revived skills, auto-syncs `description` changes from SKILL.md to registry |
 | [Reg] | Checks `user-created/` registry consistency — adds missing entries, removes deleted ones. Never modifies skill content |
 | [Check] | Validates registry entries (empty triggers, broken paths), auto-fixes malformed SKILL.md (auto-generated only), and detects merge candidates via 5-axis scoring (name, content keywords, heading structure, cross-references, file layout) with three-layer anti-false-positive gates |
+| [Snapshot] | Saves a timestamped copy of `user_capabilities.json` to `.history/` for change audit and rollback reference |
 
 #### Section 8: Compliance & Audit
 
