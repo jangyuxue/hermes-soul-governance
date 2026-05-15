@@ -40,9 +40,8 @@ hermes config set memory.memory_enabled false
 │   ├── user_capabilities.json       ← All skill entries
 │   └── capability_finder.py         ← Trigger matcher
 ├── skills/
-│   ├── auto-generated/              ← Agent's skills
-│   │   ├── README.md
-│   │   └── self_created_skills.json ← Manifest
+│   ├── auto-generated/              ← Agent's skills (lifecycle tracked in registry)
+│   │   └── README.md
 │   └── user-created/
 │       ├── README.md
 │       └── skill-maintenance/       ← Maintenance tool

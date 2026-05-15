@@ -1,11 +1,18 @@
 {
-  "version": "1.0",
-  "description": "User custom capabilities registry",
+  "version": "2.0",
+  "last_updated": "2026-05-15",
+  "description": "Example unified registry with lifecycle tracking",
   "capabilities": [
     {
       "id": "example-skill",
       "name": "Example Skill",
       "category": "auto-generated",
+      "lifecycle": {
+        "type": "auto-generated",
+        "status": "active",
+        "registered": true,
+        "note": "Example auto-generated skill with lifecycle tracking"
+      },
       "triggers": ["example", "test"],
       "description": "Example skill registry entry",
       "script": null,

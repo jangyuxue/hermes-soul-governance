@@ -1,11 +1,18 @@
 {
-  "version": "1.0",
-  "description": "User custom capabilities registry",
+  "version": "2.0",
+  "last_updated": "2026-05-15",
+  "description": "Unified skill registry — routing + lifecycle tracking via lifecycle field",
   "capabilities": [
     {
       "id": "example-skill",
       "name": "Example Skill",
       "category": "user-created",
+      "lifecycle": {
+        "type": "user-created",
+        "status": "active",
+        "registered": true,
+        "note": ""
+      },
       "triggers": ["trigger word 1", "trigger word 2"],
       "description": "Description of what this skill does",
       "script": "~/.hermes/skills/user-created/example-skill/scripts/run.py",
@@ -22,6 +29,22 @@
         "Example usage sentence 1",
         "Example usage sentence 2"
       ]
+    },
+    {
+      "id": "example-auto-skill",
+      "name": "Example Auto Skill",
+      "category": "auto-generated",
+      "lifecycle": {
+        "type": "auto-generated",
+        "status": "active",
+        "registered": true,
+        "note": "Example auto-generated skill"
+      },
+      "triggers": [],
+      "description": "Example auto-generated skill with lifecycle tracking",
+      "script": null,
+      "dependencies": [],
+      "examples": []
     }
   ]
 }

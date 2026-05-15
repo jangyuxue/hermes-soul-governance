@@ -220,7 +220,7 @@ The maintenance script (`maintain.py`) at `~/.hermes/skills/user-created/skill-m
 | Phase | What it does |
 |-------|-------------|
 | [Orphan] | Scans category directories, migrates misplaced non-bundled skills to `auto-generated/`, registers and tracks them in one pass |
-| [Sync] | Compares `auto-generated/` against manifest: detects new/deleted/revived skills, auto-syncs `description` changes from SKILL.md to both manifest and registry |
+| [Sync] | Compares `auto-generated/` disk against registry lifecycle fields: detects new/deleted/revived skills, auto-syncs `description` changes from SKILL.md to registry |
 | [Reg] | Checks `user-created/` registry consistency — adds missing entries, removes deleted ones. Never modifies skill content |
 | [Check] | Validates registry entries (empty triggers, broken paths), auto-fixes malformed SKILL.md (auto-generated only), and detects merge candidates via 5-axis scoring (name, content keywords, heading structure, cross-references, file layout) with three-layer anti-false-positive gates |
 
@@ -337,8 +337,7 @@ hermes-soul-governance/
 │   │   └── capability_finder.py
 │   ├── skills/                  # Skill management
 │   │   ├── auto-generated/
-│   │   │   ├── README.md
-│   │   │   └── self_created_skills.json
+│   │   │   └── README.md
 │   │   └── user-created/
 │   │       ├── README.md
 │   │       └── skill-maintenance/
@@ -353,8 +352,7 @@ hermes-soul-governance/
 │       ├── data/
 │       └── temp/
 └── examples/
-    ├── auto-generated/self_created_skills.json
-    └── user_capabilities.json
+    └── user_capabilities.json    # Example with lifecycle field
 ```
 
 ---

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Automated Skill Maintenance Script v5
+"""Automated Skill Maintenance Script v6
 
-v4 → v5: Added user-created/ directory check
-         Script only syncs registry for user-created/ (does not modify skill content)
-         Manifest only tracks skills under auto-generated/
+v5 → v6: Removed self_created_skills.json manifest.
+         All lifecycle tracking merged into user_capabilities.json via lifecycle field.
+         Registry is now the single source of truth for all skills.
 
 Modes:
   Global scan (default): 
     1. [Orphan]  Scan category dirs → move non-bundled to auto-generated/
-    2. [Sync]    auto-generated/ vs manifest diff
+    2. [Sync]    auto-generated/ vs registry lifecycle diff
     3. [Reg]     user-created/ vs registry consistency
     4. [Check]   Validate warnings (empty triggers, missing paths, format fix,
                  merge candidate detection)
@@ -31,8 +31,6 @@ from datetime import datetime
 AUTO_GEN_DIR = os.path.expanduser("~/.hermes/skills/auto-generated")
 USER_CREATED_DIR = os.path.expanduser("~/.hermes/skills/user-created")
 REGISTRY_PATH = os.path.expanduser("~/.hermes/user-registry/user_capabilities.json")
-MANIFEST_PATH = os.path.join(AUTO_GEN_DIR, "self_created_skills.json")
-HISTORY_DIR = os.path.join(AUTO_GEN_DIR, ".history")
 BACKUP_DIR = os.path.join(AUTO_GEN_DIR, ".backup")
 
 
@@ -100,11 +98,7 @@ def count_references(skill_path):
 
 
 def get_skill_topic_keywords(skill_path):
-    """Extract topic keywords from SKILL.md: headings, tags, and description field.
-    
-    Does NOT extract body content — boilerplate words like "skill", "use", "setup"
-    appear in every SKILL.md and cause false merge positives.
-    """
+    """Extract topic keywords from SKILL.md: headings, tags, and description field."""
     keywords = set()
     skill_md = os.path.join(skill_path, "SKILL.md")
     if not os.path.exists(skill_md):
@@ -185,13 +179,16 @@ def get_skill_related(skill_path):
     return related
 
 
-def detect_merge_candidates(manifest, registry):
+def detect_merge_candidates(registry):
+    """Detect merge candidates among active auto-generated skills in registry."""
     candidates = []
-    active = [s for s in manifest.get("self_created_skills", []) if s["status"] == "active"]
+    active = [c for c in registry.get("capabilities", [])
+              if c.get("lifecycle", {}).get("type") == "auto-generated"
+              and c.get("lifecycle", {}).get("status") == "active"]
 
     skill_data = {}
-    for s in active:
-        name = s["name"]
+    for cap in active:
+        name = cap["id"]
         path = os.path.join(AUTO_GEN_DIR, name)
         skill_data[name] = {
             "keywords": get_skill_topic_keywords(path),
@@ -203,7 +200,7 @@ def detect_merge_candidates(manifest, registry):
 
     for i in range(len(active)):
         for j in range(i + 1, len(active)):
-            a, b = active[i]["name"], active[j]["name"]
+            a, b = active[i]["id"], active[j]["id"]
             da, db = skill_data[a], skill_data[b]
             score = 0.0
             axes_used = set()
@@ -332,6 +329,24 @@ author: Hermes Agent
     return False, "no fix needed"
 
 
+def make_lifecycle_entry(category, status="active"):
+    """Create a lifecycle dict for a skill capability entry."""
+    return {
+        "type": category,
+        "status": status,
+        "registered": True,
+        "note": ""
+    }
+
+
+def get_or_create_lifecycle(cap):
+    """Get lifecycle dict from a capability, creating default if missing."""
+    if "lifecycle" not in cap:
+        cat = cap.get("category", "auto-generated")
+        cap["lifecycle"] = make_lifecycle_entry(cat)
+    return cap["lifecycle"]
+
+
 # ============ User-created Registry Check ============
 
 def sync_user_created_registry(registry):
@@ -349,6 +364,7 @@ def sync_user_created_registry(registry):
                 "id": name,
                 "name": name.replace("-", " ").title(),
                 "category": "user-created",
+                "lifecycle": make_lifecycle_entry("user-created"),
                 "triggers": [],
                 "description": description or f"User-created skill: {name}",
                 "script": None,
@@ -362,7 +378,8 @@ def sync_user_created_registry(registry):
     # 2. Registry has user-created but disk does not → remove
     to_remove = []
     for c in registry["capabilities"]:
-        if c.get("category") == "user-created" and c["id"] not in disk_skills:
+        lc = get_or_create_lifecycle(c)
+        if lc.get("type") == "user-created" and c["id"] not in disk_skills:
             to_remove.append(c)
             changes.append(f"  - Unregistered {c['id']} (disk deleted)")
 
@@ -372,96 +389,75 @@ def sync_user_created_registry(registry):
     return changes
 
 
-# ============ Auto-generated Manifest Sync ============
+# ============ Auto-generated Sync (Registry-based) ============
 
-def sync_auto_generated_manifest(manifest, registry):
-    """Auto-generated manifest diff against disk"""
+def sync_auto_generated_skills(registry):
+    """Sync auto-generated/ directory against registry lifecycle entries."""
     changes = []
-    known = {s["name"]: s for s in manifest.get("self_created_skills", [])}
-
     disk_skills = scan_skills_in_dir(AUTO_GEN_DIR)
     disk_skills = {n: p for n, p in disk_skills.items()
                    if n not in ("self_created_skills",)}
 
-    # New: disk has but manifest does not
+    reg_auto = {}
+    for cap in registry["capabilities"]:
+        lc = get_or_create_lifecycle(cap)
+        if lc.get("type") == "auto-generated":
+            reg_auto[cap["id"]] = cap
+
+    reg_ids = {c["id"] for c in registry["capabilities"]}
+
+    # New: disk has auto-generated skill but registry does not
     for name, path in disk_skills.items():
-        if name not in known:
+        if name not in reg_auto:
             # Auto-fix SKILL.md if not standard
             fixed, msg = ensure_skill_md_standard(path, name)
 
             description = get_skill_description(path)
             entry = {
-                "name": name,
-                "type": "auto-generated",
-                "description": description,
-                "status": "active",
+                "id": name,
+                "name": name.replace("-", " ").title(),
                 "category": "auto-generated",
-                "registered": True,
-                "note": f"First detected: {datetime.now().strftime('%Y-%m-%d')}",
+                "lifecycle": {
+                    "type": "auto-generated",
+                    "status": "active",
+                    "registered": True,
+                    "note": f"First detected: {datetime.now().strftime('%Y-%m-%d')}"
+                },
+                "triggers": [],
+                "description": description or f"Auto-generated skill: {name}",
+                "script": None,
+                "dependencies": [],
+                "examples": [],
             }
-            manifest["self_created_skills"].append(entry)
-            known[name] = entry
-            changes.append(f"  + Added to manifest: {name}")
+            registry["capabilities"].append(entry)
+            reg_auto[name] = entry
+            reg_ids.add(name)
+            changes.append(f"  + Added to registry: {name}")
 
-    # Missing: manifest has but disk does not
-    for name, info in known.items():
-        if info["status"] == "active" and name not in disk_skills:
-            info["status"] = "deleted"
-            info["note"] += f" | Disk deleted {datetime.now().strftime('%Y-%m-%d')}"
+    # Deleted: registry has active auto-generated but disk does not → mark deleted
+    for name, cap in reg_auto.items():
+        lc = get_or_create_lifecycle(cap)
+        if lc.get("status") == "active" and name not in disk_skills:
+            lc["status"] = "deleted"
+            lc["note"] += f" | Disk deleted {datetime.now().strftime('%Y-%m-%d')}"
             changes.append(f"  - Marked deleted: {name}")
 
-    # Revived: manifest has deleted and disk has
-    for name, info in known.items():
-        if info["status"] == "deleted" and name in disk_skills:
-            info["status"] = "active"
-            info["note"] += f" | Revived {datetime.now().strftime('%Y-%m-%d')}"
+    # Revived: registry has deleted auto-generated and disk has → restore
+    for name, cap in reg_auto.items():
+        lc = get_or_create_lifecycle(cap)
+        if lc.get("status") == "deleted" and name in disk_skills:
+            lc["status"] = "active"
+            lc["note"] += f" | Revived {datetime.now().strftime('%Y-%m-%d')}"
             changes.append(f"  ↺ Revived: {name}")
 
-    # Registry sync
-    reg_ids = {c["id"] for c in registry["capabilities"]}
-    for s in manifest["self_created_skills"]:
-        if s["status"] == "active" and s["type"] == "auto-generated":
-            if s["name"] not in reg_ids:
-                path = os.path.join(AUTO_GEN_DIR, s["name"])
-                description = get_skill_description(path)
-                entry = {
-                    "id": s["name"],
-                    "name": s["name"].replace("-", " ").title(),
-                    "category": "auto-generated",
-                    "triggers": [],
-                    "description": description or s.get("description", ""),
-                    "script": None,
-                    "dependencies": [],
-                    "examples": [],
-                }
-                registry["capabilities"].append(entry)
-                changes.append(f"  → Registered {s['name']} → user_capabilities.json")
-                reg_ids.add(s["name"])
-        elif s["status"] == "deleted" and s["name"] in reg_ids:
-            registry["capabilities"] = [
-                c for c in registry["capabilities"] if c["id"] != s["name"]
-            ]
-            changes.append(f"  ✗ Unregistered {s['name']} (deleted)")
-            reg_ids.discard(s["name"])
-
-    # Sync description: SKILL.md → manifest + registry
+    # Description sync: SKILL.md → registry
     for name, path in disk_skills.items():
-        if name in known:
+        if name in reg_auto:
             disk_desc = get_skill_description(path)
-            man = known[name]
-            if man.get("description") != disk_desc:
-                man["description"] = disk_desc
-                changes.append(f"  ~ Manifest description sync: {name}")
-                # Also update registry if present
-                for cap in registry.get("capabilities", []):
-                    if cap["id"] == name and cap.get("description") != disk_desc:
-                        cap["description"] = disk_desc
-                        changes.append(f"  ~ Registry description sync: {name}")
-
-    # Update registered status for all skills
-    for s in manifest["self_created_skills"]:
-        s["registered"] = s["name"] in reg_ids
-    manifest["last_updated"] = datetime.now().strftime("%Y-%m-%d")
+            cap = reg_auto[name]
+            if cap.get("description") != disk_desc:
+                cap["description"] = disk_desc
+                changes.append(f"  ~ Registry description sync: {name}")
 
     return changes
 
@@ -501,7 +497,7 @@ def get_category_directories():
     return cats
 
 
-def migrate_misplaced_skill(name, source_path, registry, manifest, bundled):
+def migrate_misplaced_skill(name, source_path, registry, bundled):
     """Move a misplaced skill to auto-generated/ and update records.
 
     Returns list of change descriptions.
@@ -528,6 +524,10 @@ def migrate_misplaced_skill(name, source_path, registry, manifest, bundled):
             if cap["id"] == name:
                 old_cat = cap.get("category", "")
                 cap["category"] = "auto-generated"
+                lc = get_or_create_lifecycle(cap)
+                lc["type"] = "auto-generated"
+                lc["status"] = "active"
+                lc["registered"] = True
                 # Rewrite script path if present
                 script = cap.get("script")
                 if script:
@@ -540,6 +540,7 @@ def migrate_misplaced_skill(name, source_path, registry, manifest, bundled):
             "id": name,
             "name": name.replace("-", " ").title(),
             "category": "auto-generated",
+            "lifecycle": make_lifecycle_entry("auto-generated", note=f"Migrated from {category_hint}/ ({datetime.now().strftime('%Y-%m-%d')})"),
             "triggers": [],
             "description": description or f"Auto-generated skill: {name}",
             "script": None,
@@ -549,33 +550,6 @@ def migrate_misplaced_skill(name, source_path, registry, manifest, bundled):
         registry["capabilities"].append(entry)
         changes.append(f"  → Registered {name} → user_capabilities.json")
         reg_ids.add(name)
-
-    # Add or update manifest entry
-    known = {s["name"]: s for s in manifest.get("self_created_skills", [])}
-    description = get_skill_description(target_path)
-    if name not in known:
-        entry = {
-            "name": name,
-            "type": "auto-generated",
-            "description": description,
-            "status": "active",
-            "category": "auto-generated",
-            "registered": True,
-            "note": f"Migrated from {category_hint}/ ({datetime.now().strftime('%Y-%m-%d')})",
-        }
-        manifest["self_created_skills"].append(entry)
-        changes.append(f"  + Manifest added: {name}")
-    else:
-        existing = known[name]
-        if existing.get("description") != description:
-            existing["description"] = description
-            changes.append(f"  ~ Manifest updated: {name} description")
-        if existing.get("status") != "active":
-            existing["status"] = "active"
-            changes.append(f"  ~ Manifest updated: {name} status → active")
-        if not existing.get("registered"):
-            existing["registered"] = True
-            changes.append(f"  ~ Manifest updated: {name} registered → True")
 
     return changes
 
@@ -609,7 +583,7 @@ def get_skill_name_from_frontmatter(skill_path):
     return match.group(1).strip() if match else None
 
 
-def scan_and_migrate_misplaced(registry, manifest):
+def scan_and_migrate_misplaced(registry):
     """Orphan: Scan category dirs for non-bundled skills, migrate to auto-generated/."""
     changes = []
     bundled = load_bundled_manifest()
@@ -619,7 +593,7 @@ def scan_and_migrate_misplaced(registry, manifest):
         for name, path in sorted(scan_skills_in_dir(cat_dir).items()):
             if is_bundled_skill(name, path, bundled):
                 continue  # Bundled system skill, leave it
-            result = migrate_misplaced_skill(name, path, registry, manifest, bundled)
+            result = migrate_misplaced_skill(name, path, registry, bundled)
             changes.extend(result)
 
     return changes
@@ -630,7 +604,7 @@ def scan_and_migrate_misplaced(registry, manifest):
 def run_global_scan():
     print()
     print("=" * 66)
-    print("  Skill Maintenance Tool v5 — Global Scan")
+    print("  Skill Maintenance Tool v6 — Global Scan (Unified Registry)")
     print(f"  Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"  auto-generated: {AUTO_GEN_DIR}")
     print(f"  user-created:   {USER_CREATED_DIR}")
@@ -641,7 +615,8 @@ def run_global_scan():
     registry = load_json(REGISTRY_PATH)
     if registry is None:
         registry = {
-            "version": "1.0",
+            "version": "2.0",
+            "last_updated": datetime.now().strftime("%Y-%m-%d"),
             "description": "User custom capabilities registry",
             "capabilities": [],
         }
@@ -656,25 +631,11 @@ def run_global_scan():
         os.makedirs(USER_CREATED_DIR, exist_ok=True)
         print(f"    Created directory: user-created/")
 
-    # Load manifest
-    manifest = load_json(MANIFEST_PATH)
-    if manifest is None:
-        manifest = {
-            "version": "1.0",
-            "last_updated": datetime.now().strftime("%Y-%m-%d"),
-            "description": "Auto-generated skills manifest",
-            "self_created_skills": [],
-            "builtin_skills": [],
-        }
-    backup_file(MANIFEST_PATH)
-
     reg_before = len(registry["capabilities"])
 
     # ========== Orphan Detection & Migration ==========
-    # Run FIRST: move non-bundled skills from category dirs to auto-generated/
-    # so Sync can pick them up in the same run.
     print("  [Orphan] Misplaced skill check...")
-    misplaced_changes = scan_and_migrate_misplaced(registry, manifest)
+    misplaced_changes = scan_and_migrate_misplaced(registry)
     if misplaced_changes:
         for c in misplaced_changes:
             print(c)
@@ -682,10 +643,9 @@ def run_global_scan():
         print("    No misplaced skills found")
     print()
 
-    # ========== Sync: Auto-generated Manifest Diff ==========
-    # After orphan migration, all misplaced skills are now in auto-generated/.
-    print("  [Sync] Auto-generated manifest diff...")
-    auto_changes = sync_auto_generated_manifest(manifest, registry)
+    # ========== Sync: Auto-generated vs Registry Lifecycle ==========
+    print("  [Sync] Auto-generated skill lifecycle sync...")
+    auto_changes = sync_auto_generated_skills(registry)
     if auto_changes:
         for c in auto_changes:
             print(c)
@@ -723,11 +683,9 @@ def run_global_scan():
                 warnings.append(f"  ! {cap_id}: script not found — {script}")
 
     # Check SKILL.md format for auto-generated skills only
-    for skill_dir in [AUTO_GEN_DIR]:
-        if not os.path.exists(skill_dir):
-            continue
-        for item in os.listdir(skill_dir):
-            item_path = os.path.join(skill_dir, item)
+    if os.path.exists(AUTO_GEN_DIR):
+        for item in os.listdir(AUTO_GEN_DIR):
+            item_path = os.path.join(AUTO_GEN_DIR, item)
             if os.path.isdir(item_path) and os.path.exists(os.path.join(item_path, "SKILL.md")):
                 fixed, msg = ensure_skill_md_standard(item_path, item)
                 if fixed:
@@ -735,7 +693,7 @@ def run_global_scan():
                     warnings.append(f"    → re-run to register")
 
     # Merge candidate detection
-    merge_warnings = detect_merge_candidates(manifest, registry)
+    merge_warnings = detect_merge_candidates(registry)
     if merge_warnings:
         warnings.append("")
         for m in merge_warnings:
@@ -749,41 +707,32 @@ def run_global_scan():
     print()
 
     # ========== Write ==========
-    print("  [Write] Saving files...")
-    save_json(MANIFEST_PATH, manifest)
+    print("  [Write] Saving registry...")
+    registry["last_updated"] = datetime.now().strftime("%Y-%m-%d")
     save_json(REGISTRY_PATH, registry)
 
-    os.makedirs(HISTORY_DIR, exist_ok=True)
-    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    snapshot_path = os.path.join(HISTORY_DIR, f"snapshot_{run_id}.json")
-    snapshot = {
-        "run_id": run_id,
-        "timestamp": datetime.now().isoformat(),
-        "misplaced_changes": misplaced_changes,
-        "auto_changes": auto_changes,
-        "user_created_changes": uc_changes,
-        "reg_before": reg_before,
-        "reg_after": len(registry["capabilities"]),
-    }
-    save_json(snapshot_path, snapshot)
-
     print(f"    Registry: {REGISTRY_PATH}")
-    print(f"    Manifest: {MANIFEST_PATH}")
-    print(f"    Snapshot: {snapshot_path}")
     print()
 
     # ========== Summary ==========
-    active_auto = len([s for s in manifest["self_created_skills"] if s["status"] == "active"])
-    active_uc = len(scan_skills_in_dir(USER_CREATED_DIR))
+    auto_active = len([c for c in registry["capabilities"]
+                       if c.get("lifecycle", {}).get("type") == "auto-generated"
+                       and c.get("lifecycle", {}).get("status") == "active"])
+    auto_deleted = len([c for c in registry["capabilities"]
+                        if c.get("lifecycle", {}).get("type") == "auto-generated"
+                        and c.get("lifecycle", {}).get("status") == "deleted"])
+    uc_active = len(scan_skills_in_dir(USER_CREATED_DIR))
 
     print("  " + "=" * 66)
     print()
-    print(f"  auto-generated: {active_auto} active")
-    for s in sorted(manifest["self_created_skills"], key=lambda x: (x["status"], x["name"])):
-        tag = "OK" if s["status"] == "active" else "DEL"
-        print(f"    [{tag}] {s['name']}")
+    print(f"  auto-generated: {auto_active} active, {auto_deleted} deleted")
+    for cap in sorted(registry["capabilities"], key=lambda x: (x.get("lifecycle", {}).get("status", ""), x["id"])):
+        lc = cap.get("lifecycle", {})
+        if lc.get("type") == "auto-generated":
+            tag = "OK" if lc.get("status") == "active" else "DEL"
+            print(f"    [{tag}] {cap['id']}")
     print()
-    print(f"  user-created: {active_uc}")
+    print(f"  user-created: {uc_active}")
     for name in sorted(scan_skills_in_dir(USER_CREATED_DIR).keys()):
         in_reg = any(c["id"] == name for c in registry["capabilities"])
         tag = "OK" if in_reg else "WARN"
@@ -792,17 +741,16 @@ def run_global_scan():
     print(f"  Registry total: {len(registry['capabilities'])} entries")
     print()
 
-    all_changes = auto_changes + uc_changes + misplaced_changes
+    all_changes = misplaced_changes + auto_changes + uc_changes
     summary = {
-        "version": 5,
+        "version": 6,
         "timestamp": datetime.now().isoformat(),
-        "run_id": run_id,
         "changes_made": len(all_changes) > 0,
-        "auto_generated_count": active_auto,
-        "user_created_count": active_uc,
+        "auto_generated_active": auto_active,
+        "auto_generated_deleted": auto_deleted,
+        "user_created_count": uc_active,
         "registry_count": len(registry["capabilities"]),
         "changes": all_changes,
-        "snapshot_path": snapshot_path,
     }
     print("---SUMMARY_START---")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
