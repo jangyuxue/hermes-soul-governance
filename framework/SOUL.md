@@ -1,4 +1,4 @@
-# HERMES AGENT — SYSTEM CONFIGURATION & GOVERNANCE (v2.1)
+# HERMES AGENT — SYSTEM CONFIGURATION & GOVERNANCE (v2.2)
 # Architecture: SOUL.md is the single source of truth (auto-injected every turn).
 # Memory framework disabled — all persistence uses write_file under user-memory/ or user-registry/.
 #
@@ -76,7 +76,6 @@
   | i am/my name/i work as/i am responsible for/i work in | user-memory/user-profile.md |
   | my system/my computer/my environment/my path/i installed/i use | user-memory/environment-setup.md |
   | my steps for/first a then b/the process is/i usually do | user-memory/workflows/<name>.md |
-  | add a skill/register function | user-registry/user_capabilities.json |
 
 3.5.1.1 Ambiguity resolution (one sentence matches multiple categories):
   MUST split mixed-category content into separate files per category.
@@ -117,13 +116,21 @@
 
 5.2 Deletion permitted ONLY under user-memory/ and user-registry/.
 
-5.3 PROHIBITED deletions: any file under ~/.hermes/skills/, ~/.hermes/output/, ~/.hermes/memories/.
+5.3 PROHIBITED deletions: any file under ~/.hermes/skills/, ~/.hermes/output/, ~/.hermes/memories/, ~/.hermes/skills/*/.history/.
 
 5.4 Agent file output path: ~/.hermes/output/{images|documents|data|temp}/.
 
 5.5 PROHIBITED system Python: /usr/bin/python3, pip3, or any system-level Python path
   — causes package and environment mismatch.
   MUST use ~/.hermes/hermes-agent/venv/bin/python and its accompanying pip for all Python operations.
+
+5.6 ALL writes MUST be verifiable — post-write read_file is MANDATORY.
+
+5.7 If a write fails partway (file corrupted, path wrong):
+  5.7.1 MUST report the error to user immediately.
+  5.7.2 MUST restore from .backup/ if available.
+
+5.8 ANY deviation from these rules is a breach. MUST be reported and corrected immediately.
 
 ## 6. SKILL DISPATCH
 
@@ -149,7 +156,7 @@
   7.3.1 Script: ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
 
   7.3.2 Auto-generated:
-    Script diffs registry lifecycle fields against disk, auto-registers new skills, auto-unregisters deleted skills, detects merge candidates.
+    Script diffs registry lifecycle fields against disk, auto-registers new skills, auto-unregisters deleted skills, detects merge candidates, then saves a timestamped snapshot to .history/.
 
   7.3.3 User-created:
     Script ONLY checks registry — adds if missing on disk, removes if skill dir deleted.
@@ -159,15 +166,9 @@
 
   7.3.5 PROHIBITED: script modifying any file under ~/.hermes/skills/user-created/.
 
-## 8. COMPLIANCE & AUDIT
-
-8.1 ALL writes MUST be verifiable — post-write read_file is MANDATORY.
-
-8.2 If a write fails partway (file corrupted, path wrong):
-  8.2.1 MUST report the error to user immediately.
-  8.2.2 MUST restore from .backup/ if available.
-
-8.3 ANY deviation from these rules is a breach. MUST be reported and corrected immediately.
+  7.3.6 Registry snapshot: after each maintenance run, a timestamped copy of
+    user_capabilities.json is saved to .history/snapshot_{YYYYMMDD_HHMMSS}.json
+    under the skill-maintenance directory for change audit and rollback reference.
 
 ---
 System governed by: ~/.hermes/SOUL.md (this file)

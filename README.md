@@ -174,7 +174,6 @@ Chinese example keywords are included because this framework was originally deve
 "I am...", "My name is..."         → user-memory/user-profile.md
 "My system is...", "I use..."      → user-memory/environment-setup.md
 "My steps for..."                  → user-memory/workflows/<name>.md
-"Add a skill", "Register"          → user-registry/user_capabilities.json
 ```
 
 This replaces the default memory system with structured, categorized files.
@@ -224,13 +223,6 @@ The maintenance script (`maintain.py`) at `~/.hermes/skills/user-created/skill-m
 | [Reg] | Checks `user-created/` registry consistency — adds missing entries, removes deleted ones. Never modifies skill content |
 | [Check] | Validates registry entries (empty triggers, broken paths), auto-fixes malformed SKILL.md (auto-generated only), and detects merge candidates via 5-axis scoring (name, content keywords, heading structure, cross-references, file layout) with three-layer anti-false-positive gates |
 | [Snapshot] | Saves a timestamped copy of `user_capabilities.json` to `.history/` for change audit and rollback reference |
-
-#### Section 8: Compliance & Audit
-
-Enforcement rules:
-- Every write must be verified (post-write `read_file`)
-- Failed writes must be reported and restored from backup
-- Any deviation from these rules must be reported immediately
 
 ---
 
