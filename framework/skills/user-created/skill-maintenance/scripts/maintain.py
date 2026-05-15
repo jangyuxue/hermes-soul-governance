@@ -330,13 +330,13 @@ author: Hermes Agent
     return False, "no fix needed"
 
 
-def make_lifecycle_entry(category, status="active"):
+def make_lifecycle_entry(category, status="active", note=""):
     """Create a lifecycle dict for a skill capability entry."""
     return {
         "type": category,
         "status": status,
         "registered": True,
-        "note": ""
+        "note": note,
     }
 
 
@@ -585,16 +585,37 @@ def get_skill_name_from_frontmatter(skill_path):
 
 
 def scan_and_migrate_misplaced(registry):
-    """Orphan: Scan category dirs for non-bundled skills, migrate to auto-generated/."""
+    """Orphan: Scan category dirs for non-bundled skills, migrate to auto-generated/.
+
+    Detects two kinds of misplaced skills:
+      1. Skills inside a category directory (e.g. creative/my-skill/)
+      2. Standalone skills at skills/<name>/ (e.g. skills/soul-governance/)
+         where the SKILL.md is directly inside the category-level dir itself.
+    """
     changes = []
     bundled = load_bundled_manifest()
 
     # Scan each category directory
     for cat_dir in get_category_directories():
+        # Case 1: Skills nested inside category dir (e.g. creative/sub-skill/)
         for name, path in sorted(scan_skills_in_dir(cat_dir).items()):
             if is_bundled_skill(name, path, bundled):
                 continue  # Bundled system skill, leave it
             result = migrate_misplaced_skill(name, path, registry, bundled)
+            changes.extend(result)
+
+        # Case 2: Category dir itself IS a standalone skill (SKILL.md directly inside,
+        # e.g. skills/soul-governance/SKILL.md). This happens when Hermes Agent creates
+        # a skill directly under skills/ without using auto-generated/ or user-created/.
+        cat_name = os.path.basename(cat_dir)
+        cat_skill_md = os.path.join(cat_dir, "SKILL.md")
+        if os.path.exists(cat_skill_md):
+            if is_bundled_skill(cat_name, cat_dir, bundled):
+                continue
+            if cat_name in {os.path.basename(p) for _, p in
+                            scan_skills_in_dir(AUTO_GEN_DIR).items()}:
+                continue  # Already migrated (avoid double-move)
+            result = migrate_misplaced_skill(cat_name, cat_dir, registry, bundled)
             changes.extend(result)
 
     return changes
