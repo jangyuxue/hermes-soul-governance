@@ -117,6 +117,7 @@ The script is designed to run on a fresh `~/.hermes/` with zero pre-configuratio
 | `user-registry/` directory | Created via `os.makedirs` (by save_json) |
 | `auto-generated/` directory | Created, prints "Created directory: auto-generated/" |
 | `user-created/` directory | Created, prints "Created directory: user-created/" |
+| `.history/` directory | Created on first snapshot write |
 | `.backup/` directory | Created on first backup |
 
 The script NEVER exits with an error for missing files — it creates what it needs and proceeds.

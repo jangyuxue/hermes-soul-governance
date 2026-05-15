@@ -32,6 +32,7 @@ AUTO_GEN_DIR = os.path.expanduser("~/.hermes/skills/auto-generated")
 USER_CREATED_DIR = os.path.expanduser("~/.hermes/skills/user-created")
 REGISTRY_PATH = os.path.expanduser("~/.hermes/user-registry/user_capabilities.json")
 BACKUP_DIR = os.path.join(AUTO_GEN_DIR, ".backup")
+HISTORY_DIR = os.path.expanduser("~/.hermes/skills/user-created/skill-maintenance/.history")
 
 
 def load_json(path):
@@ -710,6 +711,13 @@ def run_global_scan():
     print("  [Write] Saving registry...")
     registry["last_updated"] = datetime.now().strftime("%Y-%m-%d")
     save_json(REGISTRY_PATH, registry)
+
+    # Save snapshot
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.makedirs(HISTORY_DIR, exist_ok=True)
+    snapshot_path = os.path.join(HISTORY_DIR, f"snapshot_{run_id}.json")
+    save_json(snapshot_path, registry)
+    print(f"    Snapshot: {snapshot_path}")
 
     print(f"    Registry: {REGISTRY_PATH}")
     print()

@@ -147,13 +147,13 @@
   7.3.1 Script: ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
 
   7.3.2 Auto-generated:
-    Script diffs manifest against disk, auto-registers new skills, auto-unregisters deleted skills, detects merge candidates.
+    Script diffs registry lifecycle fields against disk, auto-registers new skills, auto-unregisters deleted skills, detects merge candidates.
 
   7.3.3 User-created:
     Script ONLY checks registry — adds if missing on disk, removes if skill dir deleted.
     MUST NOT modify skill content.
 
-  7.3.4 Manifest: ~/.hermes/skills/auto-generated/self_created_skills.json (tracks auto-generated ONLY).
+  7.3.4 Unified registry: lifecycle tracking merged into user_capabilities.json via lifecycle field on each entry (tracks auto-generated ONLY).
 
   7.3.5 PROHIBITED: script modifying any file under ~/.hermes/skills/user-created/.
 

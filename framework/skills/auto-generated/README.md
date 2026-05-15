@@ -2,4 +2,4 @@
 
 Agent-created skills after completing complex tasks. Managed by `maintain.py`.
 
-`self_created_skills.json` — manifest tracking all auto-generated skills. See SOUL.md Section 7.3.
+Lifecycle status (active/deleted) tracked via `lifecycle` field in `user-registry/user_capabilities.json`. See SOUL.md Section 7.3.

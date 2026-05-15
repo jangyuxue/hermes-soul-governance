@@ -8,8 +8,8 @@ Runs four maintenance phases in strict sequence:
 
 | Phase | Description |
 |-------|-------------|
-| [Orphan] | Scans all category dirs, migrates misplaced non-bundled skills to `auto-generated/`, registers and tracks in one pass |
-| [Sync] | Compares `auto-generated/` dir against manifest: detects new/deleted/revived skills, syncs SKILL.md `description` changes to manifest and registry |
+| [Orphan] | Scans all category dirs, migrates misplaced non-bundled skills to `auto-generated/`, registers with lifecycle fields |
+| [Sync] | Compares `auto-generated/` disk against registry lifecycle fields: detects new/deleted/revived skills, auto-syncs SKILL.md `description` changes to registry |
 | [Reg] | Checks `user-created/` registry consistency — adds missing entries, removes deleted ones. Never touches skill content |
 | [Check] | Validates registry entries (empty triggers, broken paths), auto-fixes malformed SKILL.md (auto-generated only), detects merge candidates via 5-axis scoring with anti-false-positive gates |
 
@@ -17,13 +17,5 @@ Runs four maintenance phases in strict sequence:
 
 | File | Purpose |
 |------|---------|
-| `scripts/maintain.py` | The maintenance script (v5.8.0) |
-| `SKILL.md` | Skill documentation for the agent |
-
-## Usage
-
-```bash
-# Full scan
-~/.hermes/hermes-agent/venv/bin/python \
-  ~/.hermes/skills/user-created/skill-maintenance/scripts/maintain.py
-```
+| `scripts/maintain.py` | The maintenance script (v6 — unified registry) |
+| `SKILL.md` | Skill documentation |
