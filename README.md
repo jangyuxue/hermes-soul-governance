@@ -218,7 +218,7 @@ The maintenance script (`maintain.py`) at `~/.hermes/skills/user-created/skill-m
 
 | Phase | What it does |
 |-------|-------------|
-| [Orphan] | Scans category directories, migrates misplaced non-bundled skills to `auto-generated/`, registers and tracks them in one pass |
+| [Orphan] | Scans category directories for sub-skills AND standalone skills at `skills/<name>/` (e.g. agent-created standalone skills), migrates non-bundled ones to `auto-generated/`, registers and tracks them in one pass |
 | [Sync] | Compares `auto-generated/` disk against registry lifecycle fields: detects new/deleted/revived skills, auto-syncs `description` changes from SKILL.md to registry |
 | [Reg] | Checks `user-created/` registry consistency — adds missing entries, removes deleted ones. Never modifies skill content |
 | [Check] | Validates registry entries (empty triggers, broken paths), auto-fixes malformed SKILL.md (auto-generated only), and detects merge candidates via 5-axis scoring (name, content keywords, heading structure, cross-references, file layout) with three-layer anti-false-positive gates |

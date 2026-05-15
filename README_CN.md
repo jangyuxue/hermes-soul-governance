@@ -211,7 +211,7 @@ memory:
 
 | 阶段 | 功能 |
 |------|------|
-| [Orphan] | 扫描分类目录，将非 bundled 技能迁移到 `auto-generated/`，写入注册表并添加 lifecycle 字段 |
+| [Orphan] | 扫描分类目录下的子技能 AND 直接放在 `skills/<name>/` 的独立技能（如 agent 直接创建的），将非 bundled 技能迁移到 `auto-generated/`，写入注册表并添加 lifecycle 字段 |
 | [Sync] | 对比 `auto-generated/` 磁盘与注册表 lifecycle 字段：检测新增/删除/恢复的技能，自动将 SKILL.md 的 `description` 变更同步到注册表 |
 | [Reg] | 检查 `user-created/` 注册表一致性——添加缺失条目，移除已删除的。不修改技能内容 |
 | [Check] | 校验注册表条目（空触发词、路径失效）、自动修复异常的 SKILL.md（仅 auto-generated）、通过 5 轴评分（名称、内容关键词、章节结构、交叉引用、文件结构）检测合并候选，配有三层防误报门控 |

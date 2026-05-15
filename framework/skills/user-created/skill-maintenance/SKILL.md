@@ -1,6 +1,6 @@
 ---
 name: skill-maintenance
-description: "Automated skill maintenance tool (v6 — Unified Registry + Snapshots). Full scan: [Orphan] migrate misplaced skills from category dirs to auto-generated/, [Sync] auto-generated/ vs registry lifecycle diff (new/deleted/revived + description auto-sync via lifecycle field), [Reg] user-created/ registry consistency (add/remove, no content changes), [Check] validation warnings + multi-dimensional merge detection, [Snapshot] timestamped registry archive to .history/. All lifecycle tracking merged into user_capabilities.json — single source of truth."
+description: "Automated skill maintenance tool (v6 — Unified Registry + Snapshots). Full scan: [Orphan] migrate misplaced skills from category dirs OR standalone skills/&lt;name&gt;/ to auto-generated/, [Sync] auto-generated/ vs registry lifecycle diff (new/deleted/revived + description auto-sync via lifecycle field), [Reg] user-created/ registry consistency (add/remove, no content changes), [Check] validation warnings + multi-dimensional merge detection, [Snapshot] timestamped registry archive to .history/. All lifecycle tracking merged into user_capabilities.json — single source of truth."
 version: 6.0.0
 author: Hermes Agent
 license: MIT
@@ -56,6 +56,11 @@ Before any scan step runs, the script ensures all required infrastructure exists
 ### [Orphan] Misplaced Skills Auto-Migration (SOUL.md Enforcement)
 
 Scans category directories under `skills/` for skills that landed in the wrong place.
+Detects two types:
+1. **Sub-skills** inside a category dir (e.g. `creative/my-skill/`)
+2. **Standalone skills** directly at `skills/<name>/` with their own SKILL.md (e.g.
+   agent-created skills that bypassed auto-generated/ or user-created/)
+
 Moves non-bundled skills to `auto-generated/` and registers them in the capability registry
 with lifecycle fields — all in one pass.
 
